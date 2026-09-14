@@ -1,0 +1,24 @@
+:root{
+  /* Typography */
+  --font-sans: 'MiSans','Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+  --font-mono: 'Ubuntu Mono','JetBrains Mono',Consolas,Monaco,monospace;
+  --text-2xs:11px; --text-xs:12px; --text-sm:13px; --text-base:14px; --text-lg:16px; --text-xl:18px;
+  --h1:28px; --h1-lh:32px; --h2:20px; --h2-lh:28px; --h3:16px; --h3-lh:24px;
+  /* Spacing 4pt */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px; --s10:40px; --s12:48px; --s16:64px;
+  /* Layout */
+  --max:1280px; --gutter:24px;
+  /* Color – Slate + Brand Cyan (dark-first, light fallback via base.css) */
+  --bg-0:#070B10; --bg-1:#0B0F14; --surface:#121A23; --surface-2:#162232; --surface-3:#1A2A3A;
+  --text-0:#E6EDF3; --muted:#8A9BA8; --line:#1F2C3A;
+  --brand-500:#06B6D4; --brand-600:#0891B2; --brand-700:#0E7490; --accent:#22D3EE;
+  /* Radius / Shadow */
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:20px;
+  --shadow-sm:0 2px 10px rgba(0,0,0,.25); --shadow-md:0 8px 32px rgba(0,0,0,.35); --shadow-lg:0 16px 48px rgba(0,0,0,.45);
+}
+@media (prefers-color-scheme: light){
+  :root{
+    --bg-0:#F1F5F9; --bg-1:#F8FAFC; --surface:#FFFFFF; --surface-2:#F8FAFC; --surface-3:#F1F5F9;
+    --text-0:#0F172A; --muted:#64748B; --line:#E2E8F0;
+  }
+}

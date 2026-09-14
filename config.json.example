@@ -1,0 +1,51 @@
+{
+  "server": {
+    "port": 8045,
+    "host": "0.0.0.0",
+    "maxRequestSize": "500mb",
+    "heartbeatInterval": 15000,
+    "memoryThreshold": 50
+  },
+  "rotation": {
+    "strategy": "round_robin",
+    "requestCount": 50
+  },
+  "log": {
+    "maxSizeMB": 10,
+    "maxFiles": 5,
+    "maxMemory": 500
+  },
+  "api": {
+    "use": "production"
+  },
+  "defaults": {
+    "temperature": 1,
+    "topP": 1,
+    "topK": 50,
+    "maxTokens": 32000,
+    "thinkingBudget": 16000
+  },
+  "cache": {
+    "modelListTTL": 3600000
+  },
+  "other": {
+    "timeout": 300000,
+    "retryTimes": 10,
+    "retryIntervalMs": 10000,
+    "retryPollTokenWithQuota": false,
+    "forceIPv4": false,
+    "skipProjectIdFetch": false,
+    "useNativeAxios": false,
+    "useContextSystemPrompt": false,
+    "officialPromptPosition": "before",
+    "mergeSystemPrompt": false,
+    "passSignatureToClient": false,
+    "useFallbackSignature": false,
+    "cacheAllSignatures": false,
+    "cacheToolSignatures": true,
+    "cacheImageSignatures": true,
+    "cacheThinking": true,
+    "fakeNonStream": false,
+    "alwaysUseCredits": false
+  }
+}

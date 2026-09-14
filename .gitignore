@@ -1,0 +1,44 @@
+# Node.js
+node_modules/
+
+# 账户信息
+accounts.json
+
+# 日志与临时文件
+*.log
+logs/
+.limcode
+tmp/
+*.bak
+*.disabled
+output/
+
+# 环境变量
+.env
+.env.local
+
+# 配置文件（用户自定义）
+config.json
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+data/
+test/*.png
+test/*.jpeg
+public/images
+
+# 编译输出
+dist/
+
+# 参考文件
+gcli2api/
+plans/geminicli-implementation-plan.md
+
+security.json
+
+# Security Guardrails
+.venv/
+*.pem
+*.key

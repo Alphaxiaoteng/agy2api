@@ -1,0 +1,127 @@
+/* 模型目录 */
+#catalogPage{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  flex:1;
+  min-height:0;
+}
+#catalogPage.hidden{ display:none !important; }
+
+.catalog-toolbar{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:var(--r-md);
+  background:var(--surface);
+}
+.catalog-toolbar-title{ font-size:13px; font-weight:700; }
+.catalog-toolbar-meta{
+  flex:1;
+  min-width:180px;
+  font-size:12px;
+  color:var(--muted);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.catalog-stats{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.catalog-stat{
+  font-size:12px;
+  color:var(--muted);
+  border:1px solid var(--line);
+  background:var(--surface-2);
+  padding:5px 9px;
+  border-radius:999px;
+}
+.catalog-stat b{ color:var(--text-0); }
+
+.catalog-filters{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.catalog-filters select,
+.catalog-filters input{
+  min-height:34px !important;
+  font-size:12px !important;
+  max-width:220px;
+}
+
+.catalog-providers{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  gap:10px;
+}
+.catalog-provider{
+  border:1px solid var(--line);
+  border-radius:var(--r-md);
+  background:var(--surface);
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.catalog-provider .name{ font-size:13px; font-weight:700; }
+.catalog-provider .meta{ font-size:11px; color:var(--muted); word-break:break-all; }
+.catalog-provider .probe{
+  font-size:11px;
+  font-weight:700;
+}
+.catalog-provider .probe.ok{ color:var(--success); }
+.catalog-provider .probe.bad{ color:var(--danger); }
+.catalog-provider .probe.skip{ color:var(--muted); }
+
+.catalog-table-wrap{
+  flex:1;
+  min-height:0;
+  overflow:auto;
+  border:1px solid var(--line);
+  border-radius:var(--r-md);
+  background:var(--surface);
+}
+.catalog-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:12px;
+}
+.catalog-table th,
+.catalog-table td{
+  padding:8px 10px;
+  border-bottom:1px solid var(--line);
+  text-align:left;
+  vertical-align:top;
+}
+.catalog-table th{
+  position:sticky;
+  top:0;
+  background:var(--surface-2);
+  z-index:1;
+  font-size:11px;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+.catalog-table tr:hover td{ background:color-mix(in srgb, var(--surface-2) 70%, transparent); }
+.catalog-pill{
+  display:inline-flex;
+  align-items:center;
+  padding:2px 7px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:var(--surface-2);
+  font-size:10px;
+  font-weight:700;
+  margin-right:4px;
+}
+.catalog-pill.image{ border-color: color-mix(in srgb, var(--warning) 45%, var(--line)); color:var(--warning); }
+.catalog-pill.gpt{ border-color: color-mix(in srgb, var(--brand-600) 45%, var(--line)); color:var(--brand-600); }
+.catalog-pill.gemini{ color:var(--success); }
+.catalog-ref{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:11px; }

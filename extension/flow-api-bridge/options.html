@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Flow API Bridge Options</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #16a34a;
+      --error: #dc2626;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      padding: 32px 16px;
+      display: flex;
+      justify-content: center;
+      line-height: 1.5;
+    }
+    .container {
+      width: 100%;
+      max-width: 540px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    p.subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+    .help-text {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+    .status-box {
+      margin-top: 20px;
+      padding: 14px;
+      background: #f1f5f9;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .status-row:last-child {
+      margin-bottom: 0;
+    }
+    .status-label {
+      color: var(--text-muted);
+    }
+    .status-val {
+      font-weight: 600;
+    }
+    .status-val.ok {
+      color: var(--success);
+    }
+    .status-val.bad {
+      color: var(--error);
+    }
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 24px;
+    }
+    button {
+      flex: 1;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background 0.2s;
+    }
+    button.primary {
+      background: var(--primary);
+      color: white;
+    }
+    button.primary:hover {
+      background: var(--primary-hover);
+    }
+    button.secondary {
+      background: #e2e8f0;
+      color: var(--text);
+    }
+    button.secondary:hover {
+      background: #cbd5e1;
+    }
+    #toast {
+      margin-top: 14px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      display: none;
+    }
+    #toast.success {
+      display: block;
+      background: #dcfce7;
+      color: var(--success);
+    }
+    #toast.error {
+      display: block;
+      background: #fee2e2;
+      color: var(--error);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Flow API Bridge Options</h1>
+    <p class="subtitle">Configure local bridge WebSocket connection & local credentials</p>
+
+    <div class="form-group">
+      <label for="bridgeWsUrl">Bridge WebSocket URL</label>
+      <input type="text" id="bridgeWsUrl" placeholder="ws://127.0.0.1:8045/internal/flow/ws">
+      <div class="help-text">Node backend WebSocket endpoint. Default: ws://127.0.0.1:8045/internal/flow/ws</div>
+    </div>
+
+    <div class="form-group">
+      <label for="flowExtensionToken">FLOW_EXTENSION_TOKEN</label>
+      <input type="password" id="flowExtensionToken" placeholder="Optional extension authentication token">
+      <div class="help-text">Must match FLOW_EXTENSION_TOKEN set on your Node backend if configured. Stored locally in chrome.storage.local.</div>
+    </div>
+
+    <div class="form-group">
+      <label for="clientId">Client ID</label>
+      <input type="text" id="clientId" placeholder="flow_1234567890abcdef">
+      <div class="help-text">Stable identifier for this browser instance.</div>
+    </div>
+
+    <div class="form-group">
+      <label for="accountLabel">Account Label (Friendly Display)</label>
+      <input type="text" id="accountLabel" placeholder="Work Account / Personal Flow">
+      <div class="help-text">Optional display label for identifying this profile (1-64 characters).</div>
+    </div>
+
+    <div class="status-box">
+      <div class="status-row">
+        <span class="status-label">Bridge Connection:</span>
+        <span id="statusConnected" class="status-val bad">Disconnected</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Google Flow Token:</span>
+        <span id="statusToken" class="status-val">Not Present</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Flow Web API Key:</span>
+        <span id="statusApiKey" class="status-val">Not Captured</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Project ID:</span>
+        <span id="statusProjectId" class="status-val">—</span>
+      </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <div class="btn-row">
+      <button class="primary" id="btnSave">Save Settings</button>
+      <button class="secondary" id="btnReconnect">Reconnect</button>
+    </div>
+  </div>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>

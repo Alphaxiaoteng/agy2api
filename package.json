@@ -1,0 +1,77 @@
+{
+  "name": "antigravity-to-openai",
+  "version": "1.0.0",
+  "description": "Antigravity API 转 OpenAI 格式的代理服务",
+  "type": "module",
+  "main": "src/server/index.js",
+  "bin": "src/server/index.js",
+  "scripts": {
+    "start": "node --expose-gc src/server/index.js",
+    "start:no-gc": "node src/server/index.js",
+    "login": "node scripts/oauth-server.js",
+    "refresh": "node scripts/refresh-tokens.js",
+    "sync:cockpit": "node scripts/sync-cockpit-8045.mjs",
+    "harden:8045": "node scripts/harden-8045.mjs",
+    "dev": "node --expose-gc --watch src/server/index.js",
+    "flow": "node scripts/flow.mjs",
+    "test:sonnet8045": "node /var/folders/g4/f2zymj_n43g4848ccjbv4ggw0000gn/T/opencode/test-sonnet-8045.mjs",
+    "test": "node test/test-flow-runner.js",
+    "build": "node scripts/build.js --target=win",
+    "build:win": "node scripts/build.js --target=win",
+    "build:linux": "node scripts/build.js --target=linux",
+    "build:linux-arm64": "node scripts/build.js --target=linux-arm64",
+    "build:macos": "node scripts/build.js --target=macos",
+    "build:macos-arm64": "node scripts/build.js --target=macos-arm64",
+    "build:all": "node scripts/build.js --target=all",
+    "docker:build": "node scripts/build-docker.js"
+  },
+  "keywords": [
+    "antigravity",
+    "openai",
+    "api",
+    "proxy"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.13.4",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "protobufjs": "^8.0.0",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.2",
+    "pkg": "^5.8.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "pkg": {
+    "scripts": [
+      "src/**/*.js",
+      "scripts/**/*.js"
+    ],
+    "assets": [
+      "public/*.html",
+      "public/*.css",
+      "public/js/**/*",
+      "public/assets/**/*",
+      "src/bin/**/*",
+      "src/utils/proto/**/*",
+      ".env.example",
+      "config.json"
+    ],
+    "targets": [
+      "node18-win-x64",
+      "node18-linux-x64",
+      "node18-linux-arm64",
+      "node18-macos-x64",
+      "node18-macos-arm64"
+    ],
+    "outputPath": "dist"
+  }
+}
