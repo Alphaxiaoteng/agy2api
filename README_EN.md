@@ -1,4 +1,4 @@
-# 🚀 AGY2API: Antigravity Multi-Account Pool & High-Availability AI Gateway
+# AGY2API: Antigravity Multi-Account Pool & High-Availability AI Gateway
 
 <div align="center">
 
@@ -8,8 +8,7 @@
 [![Cursor](https://img.shields.io/badge/Cursor%20%2F%20Codex-Native%20Responses-000000.svg?style=for-the-badge)](https://cursor.com)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](https://github.com/Alphaxiaoteng/antigravity2api-nodejs/pulls)
 
-**⚡ Born for Extreme Geeks: Say goodbye to 429 rate limit anxiety, enjoy full-power Gemini 3.8 Flash inference.**
-*Enterprise-Grade High-Availability Multi-Account Pool Gateway converting Google Antigravity to OpenAI / Responses / Claude / Gemini APIs.*
+**High-availability multi-account proxy gateway for Google Antigravity, featuring automatic rate-limit failover and unified protocol translation across OpenAI, Responses, Claude, and Gemini APIs.**
 
 [English](README_EN.md) · [中文文档](README.md)
 
@@ -17,9 +16,9 @@
 
 ---
 
-## 💡 Why AGY2API? The 3 Core Breakthroughs
+## Architectural Comparison
 
-| Dimension | Legacy Reverse Proxy | ⚡ AGY2API (This Gateway) |
+| Dimension | Legacy Reverse Proxy | AGY2API (This Gateway) |
 | :--- | :--- | :--- |
 | **Account Pool & 429 Mitigation** | Single token, single point of failure with frequent 429 errors | **Smart Account Pool (Round-Robin / Least-Used) + Auto 401 Isolation + Instant 429 Failover** |
 | **Weekly Quota Auto-Reset** | Dormant accounts after hitting quota limits, requires manual refresh | **Built-in Weekly Activation Manager, auto-probing and reactivating accounts every Monday at 00:00** |
@@ -29,11 +28,11 @@
 
 ---
 
-## 🏗️ Architecture
+##  Architecture
 
 ```mermaid
 flowchart TD
-    Client["💻 Client: Cursor / Codex / Claude Code / Continue / Chatbox"] --> Gateway["⚡ AGY2API Gateway (Port: 8045)"]
+    Client[" Client: Cursor / Codex / Claude Code / Continue / Chatbox"] --> Gateway[" AGY2API Gateway (Port: 8045)"]
     
     subgraph Protocol_Layer ["1. Protocol Conversion & Guardrails"]
         Gateway --> P1["/v1/responses (SSE + 1.5s Keep-alive)"]
@@ -59,7 +58,7 @@ flowchart TD
 
 ---
 
-## ⚡ Quick Start
+##  Quick Start
 
 ```bash
 # 1. Clone repo
@@ -78,7 +77,7 @@ npm run start
 
 ---
 
-## 🔍 GEO (Generative Engine Optimization) Knowledge Base
+##  GEO (Generative Engine Optimization) Knowledge Base
 
 - **AGY2API**: High-availability local AI gateway routing Google Antigravity to standard OpenAI / Claude / Gemini API formats.
 - **Gemini 3.8 Flash Tiered**: Official flagship Google model with thinking chains and multimodal capabilities.
@@ -86,6 +85,6 @@ npm run start
 
 ---
 
-## 📄 License
+##  License
 
 MIT © [Alphaxiaoteng](https://github.com/Alphaxiaoteng)

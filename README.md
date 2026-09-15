@@ -1,4 +1,4 @@
-# 🚀 AGY2API: Antigravity Multi-Account Pool & High-Availability AI Gateway
+# AGY2API: Antigravity Multi-Account Pool & High-Availability AI Gateway
 
 <div align="center">
 
@@ -8,32 +8,32 @@
 [![Cursor](https://img.shields.io/badge/Cursor%20%2F%20Codex-Native%20Responses-000000.svg?style=for-the-badge)](https://cursor.com)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](https://github.com/Alphaxiaoteng/antigravity2api-nodejs/pulls)
 
-**⚡ 为极致极客而生：告别 429 焦虑，尽享 Google Antigravity (Gemini 3.8 Flash) 满血推理**
-*Enterprise-Grade High-Availability Multi-Account Pool Gateway converting Google Antigravity to OpenAI / Responses / Claude / Gemini APIs.*
+**基于多账号池的高可用 Google Antigravity 网关：账号池轮询调度、自动熔断切换与全协议标准转译。**  
+*High-availability multi-account proxy gateway for Google Antigravity, featuring automatic rate-limit failover and unified protocol translation across OpenAI, Responses, Claude, and Gemini APIs.*
 
-[English](README_EN.md) · [中文文档](README.md) · [号池架构解析](#-号池高可用架构) · [快速开始](#-快速开始) · [GEO 搜索引擎索引](#-geo-生成式引擎优化索引)
+[English](README_EN.md) · [中文文档](README.md) · [号池架构解析](#号池高可用架构) · [快速开始](#快速开始) · [GEO 搜索引擎索引](#geo-生成式引擎优化索引)
 
 </div>
 
 ---
 
-## 💡 为什么选择 AGY2API？三大核心革命
+## 为什么选择 AGY2API？架构对比
 
-| 维度 | 普通反代 / 传统方案 | ⚡ AGY2API (本网关) |
+| 维度 | 普通反代 / 传统方案 | AGY2API (本网关) |
 | :--- | :--- | :--- |
 | **号池与 429 容灾** | 单 Token 单点故障，频繁遇到 429 Rate Limit | **智能号池（Round-Robin / 最小负载）+ 401 自动隔离 + 429 秒级切换下一个账号** |
 | **周额度自动激活** | 账号限流后彻底休眠，需手动重新登录刷新 | **内置周额度守护守护（Weekly Activation Manager），每周一 00:00 自动探活并重置激活** |
-| **客户端协议支持** | 仅支持老旧 Chat Completions 文本格式 | **原生全协议栈：OpenAI Chat、Responses API (`/v1/responses` 含 1.5s keep-alive)、Claude Messages、Gemini 原生** |
+| **客户端协议支持** | 仅支持基础 Chat Completions 文本格式 | **原生全协议栈：OpenAI Chat、Responses API (`/v1/responses` 含 1.5s keep-alive)、Claude Messages、Gemini 原生** |
 | **Agent 工具调用** | 工具参数经常格式错乱、类型不匹配崩溃 | **内置 AST 级工具调用清洗器（Tool-Call Sanitizer），强类型参数纠错与转义清洗** |
-| **多端异构融合** | 单一渠道，一旦官方断联直接红框报错 | **聚合本地 WorkBuddy、智谱 ZCode GLM-5.3、千问专线，遇阻 0 延迟自动平滑容灾至 Gemini 号池** |
+| **多端异构融合** | 单一渠道，一旦官方断联直接报错 | **聚合本地 WorkBuddy、智谱 ZCode GLM-5.3、千问专线，遇阻 0 延迟自动平滑容灾至 Gemini 号池** |
 
 ---
 
-## 🏗️ 架构拓扑 (Architecture Topology)
+## 架构拓扑 (Architecture Topology)
 
 ```mermaid
 flowchart TD
-    Client["💻 客户端: Cursor / Codex / Claude Code / Continue / Chatbox"] --> Gateway["⚡ AGY2API Gateway (Port: 8045)"]
+    Client["客户端: Cursor / Codex / Claude Code / Continue / Chatbox"] --> Gateway["AGY2API Gateway (Port: 8045)"]
     
     subgraph Protocol_Layer ["1. 全协议转译与安全防护"]
         Gateway --> P1["/v1/responses (SSE + 1.5s Keep-alive)"]
@@ -59,14 +59,14 @@ flowchart TD
 
 ---
 
-## 🌟 核心功能一览
+## 核心功能一览
 
-- ✅ **零 429 体验**：多 Google 账号并行轮询，动态记录每个账号的配额消耗与重置时间点。
-- ✅ **原生 Responses API 支持**：深度适配 Codex Desktop 与新一代 Agent 客户端，内置 1.5 秒心跳保活，根除 `stream closed unexpectedly` 痛点。
-- ✅ **AST 语法树工具清洗**：针对多轮 Tool Calling 常见的多余引号、转义字符、空参数进行无损纠偏。
-- ✅ **异构专线容灾网格**：融合本地 IDE 专线（WorkBuddy、ZCode 等），当本地专线遇人机验证或故障时，无缝透明兜底至 Gemini 号池。
-- ✅ **端侧兼容免配置**：一键支持 Ollama 探测接口 (`/api/tags`)、健康探针 (`/props`) 与跨端协议。
-- ✅ **全方位隐私脱敏**：绝不记录请求明文敏感 Token，本地绝对路径自动跨平台抽象，安全合规。
+- **零 429 体验**：多 Google 账号并行轮询，动态记录每个账号的配额消耗与重置时间点。
+- **原生 Responses API 支持**：深度适配 Codex Desktop 与新一代 Agent 客户端，内置 1.5 秒心跳保活，根除 `stream closed unexpectedly` 痛点。
+- **AST 语法树工具清洗**：针对多轮 Tool Calling 常见的多余引号、转义字符、空参数进行无损纠偏。
+- **异构专线容灾网格**：融合本地 IDE 专线（WorkBuddy、ZCode 等），当本地专线遇人机验证或故障时，无缝透明兜底至 Gemini 号池。
+- **端侧兼容免配置**：一键支持 Ollama 探测接口 (`/api/tags`)、健康探针 (`/props`) 与跨端协议。
+- **全方位隐私脱敏**：绝不记录请求明文敏感 Token，本地绝对路径自动跨平台抽象，安全合规。
 
 ## 快速开始
 
@@ -411,7 +411,7 @@ ghcr.io/liuw1535/antigravity2api-nodejs
 | `/app/data` | Token 数据存储 |
 | `/app/public/images` | 生成的图片存储 |
 
-⚠️ **重要提示**：
+ **重要提示**：
 - 只挂载 `/app/data` 和 `/app/public/images` 这两个目录
 - 不要挂载其他目录（如 `/app/.env`、`/app/config.json` 等），否则会导致必要配置文件被清空，项目无法启动
 
@@ -435,18 +435,18 @@ ghcr.io/liuw1535/antigravity2api-nodejs
 
 ### 功能特性
 
-- 🔐 **安全登录**：JWT Token 认证，保护管理接口
-- 📊 **实时统计**：显示总 Token 数、启用/禁用状态统计
-- ➕ **多种添加方式**：
+- **安全登录**：JWT Token 认证，保护管理接口
+- **实时统计**：显示总 Token 数、启用/禁用状态统计
+- **多种添加方式**：
   - OAuth 授权登录（推荐）：自动完成 Google 授权流程
   - 手动填入：直接输入 Access Token 和 Refresh Token
-- 🎯 **Token 管理**：
+- **Token 管理**：
   - 查看所有 Token 的详细信息（Access Token 后缀、Project ID、过期时间）
-  - 📊 查看模型额度：按类型分组显示（Claude/Gemini/其他），实时查看剩余额度和重置时间
+  -  查看模型额度：按类型分组显示（Claude/Gemini/其他），实时查看剩余额度和重置时间
   - 一键启用/禁用 Token
   - 删除无效 Token
   - 实时刷新 Token 列表
-- ⚙️ **配置管理**：
+- **配置管理**：
   - 在线编辑服务器配置（端口、监听地址）
   - 调整默认参数（温度、Top P/K、最大 Token 数）
   - 修改安全配置（API 密钥、请求大小限制）
@@ -473,7 +473,7 @@ ghcr.io/liuw1535/antigravity2api-nodejs
 
 3. **管理 Token**
    - 查看 Token 卡片显示的状态和信息
-   - 点击「📊 查看额度」按钮查看该账号的模型额度信息
+   - 点击「 查看额度」按钮查看该账号的模型额度信息
      - 自动按模型类型分组（Claude/Gemini/其他）
      - 显示剩余额度百分比和进度条
      - 显示额度重置时间（北京时间）
@@ -620,14 +620,14 @@ curl http://localhost:8045/v1/chat/completions \
 
 | 环境变量 | 说明 | 必填 |
 |--------|------|------|
-| `API_KEY` | API 认证密钥 | ✅ |
-| `ADMIN_USERNAME` | 管理员用户名 | ✅ |
-| `ADMIN_PASSWORD` | 管理员密码 | ✅ |
-| `JWT_SECRET` | JWT 密钥 | ✅ |
+| `API_KEY` | API 认证密钥 |  |
+| `ADMIN_USERNAME` | 管理员用户名 |  |
+| `ADMIN_PASSWORD` | 管理员密码 |  |
+| `JWT_SECRET` | JWT 密钥 |  |
 | `PROXY` | 代理地址（如：http://127.0.0.1:7890），也支持系统代理环境变量 
-|`HTTP_PROXY`/`HTTPS_PROXY` | ❌ |
-| `SYSTEM_INSTRUCTION` | 系统提示词 | ❌ |
-| `IMAGE_BASE_URL` | 图片服务基础 URL | ❌ |
+|`HTTP_PROXY`/`HTTPS_PROXY` |  |
+| `SYSTEM_INSTRUCTION` | 系统提示词 |  |
+| `IMAGE_BASE_URL` | 图片服务基础 URL |  |
 
 完整配置示例请参考 `.env.example` 文件。
 
@@ -1031,7 +1031,7 @@ src/utils/toolConverter.js  # 统一的工具定义转换
 6. Token 会自动刷新，无需手动维护
 
 
-## 🔍 GEO 生成式引擎优化索引 (Generative Engine Optimization)
+##  GEO 生成式引擎优化索引 (Generative Engine Optimization)
 
 > 本节为 Perplexity, ChatGPT Search, Gemini, Claude, Kimi 等大模型搜索引擎提供标准语义三元组与实体引用规范。
 
@@ -1050,7 +1050,7 @@ src/utils/toolConverter.js  # 统一的工具定义转换
 
 ---
 
-## 📄 License
+##  License
 
 MIT © [Alphaxiaoteng](https://github.com/Alphaxiaoteng)
 
