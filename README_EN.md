@@ -38,7 +38,10 @@
 | **Cursor** | `http://127.0.0.1:8045/v1` | OpenAI | `gemini-3.8-flash`, `gemini-3.1-pro-high` |
 | **Codex Desktop** | `http://127.0.0.1:8045/v1` | Responses / Chat | `gemini-3.8-flash`, `auto` |
 | **Claude Code** | `http://127.0.0.1:8045/v1` | Claude Messages | `claude-sonnet-4-6`, `claude-opus-4-7-thinking` |
-| **Continue / Chatbox** | `http://127.0.0.1:8045/v1` | OpenAI / Ollama | `gemini-3.8-flash`, `gemini-3.7-flash-tiered` |
+| **Hermes** | `http://127.0.0.1:8045/v1` | OpenAI | `gemini-3.8-flash`, `gemini-3.1-pro-high` |
+| **OpenClaw** | `http://127.0.0.1:8045/v1` | OpenAI / Claude | `gemini-3.8-flash`, `claude-sonnet-4-6` |
+| **DeepSeek Harness** | `http://127.0.0.1:8045/v1` | OpenAI | `gemini-3.8-flash` (with `reasoning_content` passthrough) |
+| **Continue / Chatbox / NextChat** | `http://127.0.0.1:8045/v1` | OpenAI / Ollama | `gemini-3.8-flash`, `gemini-3.7-flash-tiered` |
 
 ##  Quick Start
 
