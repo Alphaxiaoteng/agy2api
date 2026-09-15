@@ -6,7 +6,7 @@
 [![Node](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-339933.svg?style=for-the-badge&logo=nodedotjs)](https://nodejs.org/)
 [![Gemini](https://img.shields.io/badge/Gemini-3.8%20Flash-4285F4.svg?style=for-the-badge&logo=google)](https://deepmind.google)
 [![Cursor](https://img.shields.io/badge/Cursor%20%2F%20Codex-Native%20Responses-000000.svg?style=for-the-badge)](https://cursor.com)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](https://github.com/Alphaxiaoteng/antigravity2api-nodejs/pulls)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](https://github.com/Alphaxiaoteng/agy2api/pulls)
 
 **High-availability multi-account proxy gateway for Google Antigravity, featuring automatic rate-limit failover and unified protocol translation across OpenAI, Responses, Claude, and Gemini APIs.**
 
@@ -62,8 +62,8 @@ flowchart TD
 
 ```bash
 # 1. Clone repo
-git clone https://github.com/Alphaxiaoteng/antigravity2api-nodejs.git
-cd antigravity2api-nodejs
+git clone https://github.com/Alphaxiaoteng/agy2api.git
+cd agy2api
 
 # 2. Install dependencies
 npm install

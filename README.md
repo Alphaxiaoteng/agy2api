@@ -6,7 +6,7 @@
 [![Node](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-339933.svg?style=for-the-badge&logo=nodedotjs)](https://nodejs.org/)
 [![Gemini](https://img.shields.io/badge/Gemini-3.8%20Flash-4285F4.svg?style=for-the-badge&logo=google)](https://deepmind.google)
 [![Cursor](https://img.shields.io/badge/Cursor%20%2F%20Codex-Native%20Responses-000000.svg?style=for-the-badge)](https://cursor.com)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](https://github.com/Alphaxiaoteng/antigravity2api-nodejs/pulls)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](https://github.com/Alphaxiaoteng/agy2api/pulls)
 
 **基于多账号池的高可用 Google Antigravity 网关：账号池轮询调度、自动熔断切换与全协议标准转译。**  
 *High-availability multi-account proxy gateway for Google Antigravity, featuring automatic rate-limit failover and unified protocol translation across OpenAI, Responses, Claude, and Gemini APIs.*
@@ -74,22 +74,22 @@ flowchart TD
 
 **Windows (cmd.exe)**：
 ```bash
-curl -O https://raw.githubusercontent.com/liuw1535/antigravity2api-nodejs/main/setup.bat && setup.bat
+curl -O https://raw.githubusercontent.com/Alphaxiaoteng/agy2api/main/setup.bat && setup.bat
 ```
 
 **Windows (PowerShell)**：
 ```powershell
-IwR -Uri https://raw.githubusercontent.com/liuw1535/antigravity2api-nodejs/main/setup.bat -OutFile setup.bat; .\setup.bat
+IwR -Uri https://raw.githubusercontent.com/Alphaxiaoteng/agy2api/main/setup.bat -OutFile setup.bat; .\setup.bat
 ```
 
 **Linux/macOS**：
 ```bash
-wget https://raw.githubusercontent.com/liuw1535/antigravity2api-nodejs/main/setup.sh && chmod +x setup.sh && ./setup.sh
+wget https://raw.githubusercontent.com/Alphaxiaoteng/agy2api/main/setup.sh && chmod +x setup.sh && ./setup.sh
 ```
 
 或使用 curl：
 ```bash
-curl -O https://raw.githubusercontent.com/liuw1535/antigravity2api-nodejs/main/setup.sh && chmod +x setup.sh && ./setup.sh
+curl -O https://raw.githubusercontent.com/Alphaxiaoteng/agy2api/main/setup.sh && chmod +x setup.sh && ./setup.sh
 ```
 
 脚本会自动完成以下操作：
@@ -189,7 +189,7 @@ npm start
 
 ### 下载二进制文件
 
-从 [GitHub Releases](https://github.com/ZhaoShanGeng/antigravity2api-nodejs/releases) 下载对应平台的二进制文件：
+从 [GitHub Releases](https://github.com/Alphaxiaoteng/agy2api/releases) 下载对应平台的二进制文件：
 
 | 平台 | 文件名 |
 |------|--------|
@@ -383,7 +383,7 @@ docker logs -f antigravity2api
 在 Zeabur 控制台创建新服务，使用以下镜像：
 
 ```
-ghcr.io/liuw1535/antigravity2api-nodejs
+ghcr.io/Alphaxiaoteng/agy2api
 ```
 
 2. **配置环境变量**

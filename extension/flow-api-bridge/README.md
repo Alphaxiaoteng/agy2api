@@ -1,6 +1,6 @@
 # Flow API Bridge Chrome Extension (MV3)
 
-Chrome Manifest V3 bridge extension connecting Google Flow (`labs.google`) to the local `antigravity2api-nodejs` server.
+Chrome Manifest V3 bridge extension connecting Google Flow (`labs.google`) to the local `agy2api` server.
 
 ## Overview
 

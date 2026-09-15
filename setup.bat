@@ -5,12 +5,12 @@ echo ========================================
 echo.
 
 echo [1/6] Cloning repository...
-if exist "antigravity2api-nodejs" (
+if exist "agy2api" (
     echo Directory already exists, exiting...
     pause
     exit /b 1
 )
-git clone https://github.com/liuw1535/antigravity2api-nodejs.git
+git clone https://github.com/Alphaxiaoteng/agy2api.git
 if errorlevel 1 (
     echo Failed to clone repository
     pause
@@ -19,7 +19,7 @@ if errorlevel 1 (
 
 echo.
 echo [2/6] Entering project directory...
-cd antigravity2api-nodejs
+cd agy2api
 
 echo.
 echo [3/6] Installing dependencies...

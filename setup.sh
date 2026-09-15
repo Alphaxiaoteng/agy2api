@@ -6,11 +6,11 @@ echo "========================================"
 echo
 
 echo "[1/6] 克隆项目..."
-if [ -d "antigravity2api-nodejs" ]; then
+if [ -d "agy2api" ]; then
     echo "当前目录已经存在同名文件夹，已退出"
     exit 1
 fi
-git clone https://github.com/liuw1535/antigravity2api-nodejs.git
+git clone https://github.com/Alphaxiaoteng/agy2api.git
 if [ $? -ne 0 ]; then
     echo "克隆失败，请检查网络或 Git 是否已安装"
     exit 1
@@ -18,7 +18,7 @@ fi
 
 echo
 echo "[2/6] 进入项目目录..."
-cd antigravity2api-nodejs
+cd agy2api
 
 echo
 echo "[3/6] 安装依赖..."
