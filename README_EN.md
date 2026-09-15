@@ -18,16 +18,17 @@
 
 ## What It Does
 
-- **Universal Client Support**: Drop-in compatibility with Cursor, Codex Desktop, Claude Code, Continue, Chatbox, NextChat, and any tool accepting custom base URLs.
-- **Full Standard Endpoints**:
-  - `POST /v1/chat/completions`: Standard OpenAI Chat (SSE streaming, multimodal images, function calling).
-  - `POST /v1/responses`: Modern Responses API format (built for Codex Desktop & AI Agents, includes 1.5s keep-alive heartbeat).
-  - `POST /v1/messages`: Anthropic Claude protocol.
+- **Client Compatibility**: Works with any client that accepts a custom base URL, including Cursor, Codex Desktop, Claude Code, Hermes, OpenClaw, DeepSeek Harness, Continue, Chatbox, NextChat, and others.
+- **Standard Endpoints**:
+  - `POST /v1/chat/completions`: OpenAI Chat completions with SSE streaming, multimodal image input, and function calling.
+  - `POST /v1/responses`: OpenAI Responses API format, targeting Codex Desktop and AI agents; includes a 1.5s keep-alive heartbeat.
+  - `POST /v1/messages`: Anthropic Messages protocol.
   - `POST /v1beta/*`: Google Gemini native protocol.
-  - `POST /sdapi/v1/*`: Stable Diffusion WebUI drawing API (txt2img / img2img).
-- **Thinking Chain Transparency**: Full reasoning stream output for Gemini 3.8 Flash / 3.7, compliant with OpenAI `reasoning_effort` and DeepSeek `reasoning_content`.
-- **AST Tool-Call Sanitizer**: Automatically cleans and fixes parameter quotes, escapes, and schema mismatches during function calling.
-- **Multi-Account Rotation**: Load-balances requests across multiple Google accounts automatically.
+  - `POST /sdapi/v1/*`: Stable Diffusion WebUI API (txt2img / img2img).
+- **Thinking Chain**: Full reasoning stream output for Gemini 3.8 Flash / 3.7, compatible with OpenAI `reasoning_effort` and DeepSeek `reasoning_content` conventions.
+- **Tool-Call Sanitizer**: Automatically repairs parameter quoting, escape sequences, and schema mismatches in function-calling payloads.
+- **Multi-Account Rotation**: Distributes requests across multiple Google accounts for load balancing.
+- **Model Aggregation**: Exposes local or private-network models (e.g. GLM, WorkBuddy) behind a standard OpenAI-compatible interface.
 
 ---
 

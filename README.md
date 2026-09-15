@@ -17,19 +17,19 @@
 
 ---
 
-## 核心功能：它可以做什么
+## 它能做什么
 
-- **客户端无缝兼容**：直接支持 Cursor、Codex Desktop、Claude Code、Continue、Chatbox、NextChat 等任意支持自定义 API 地址的客户端。
-- **全协议标准端点**：
-  - `POST /v1/chat/completions`：标准 OpenAI 聊天接口（支持流式 SSE、图片多模态、函数调用）
-  - `POST /v1/responses`：新版 Responses API 格式（专为 Codex Desktop 及新一代 Agent 设计，内置 1.5 秒空帧心跳保活）
-  - `POST /v1/messages`：Anthropic Claude 协议接口
-  - `POST /v1beta/*`：Google Gemini 原生协议接口
-  - `POST /sdapi/v1/*`：兼容 Stable Diffusion WebUI 绘图接口（txt2img / img2img）
-- **完整思考链输出**：原生透传 Gemini 3.8 Flash / 3.7 的思维过程，兼容 OpenAI `reasoning_effort` 参数与 DeepSeek `reasoning_content` 格式。
-- **工具调用纠偏与清洗**：内置 AST 语法树解析器，自动清洗和纠正多轮 Function Calling 中的参数转义与类型错乱。
-- **多账号轮流调度**：支持导入并管理多个 Google 账号凭据，按轮询或负载策略分发请求。
-- **多端模型聚合**：支持将本地专线模型（如智谱 GLM-5.3、WorkBuddy 等）统一聚合并对外暴露为标准 OpenAI 格式。
+- **客户端兼容**：直接对接任意支持自定义 API 地址的客户端，包括 Cursor、Codex Desktop、Claude Code、Hermes、OpenClaw、DeepSeek Harness、Continue、Chatbox、NextChat 等。
+- **标准协议端点**：
+  - `POST /v1/chat/completions`：OpenAI 聊天接口，支持流式 SSE、多模态图片输入与函数调用
+  - `POST /v1/responses`：Responses API 格式，面向 Codex Desktop 及新一代 Agent，内置 1.5 秒空帧心跳保活
+  - `POST /v1/messages`：Anthropic Claude 协议
+  - `POST /v1beta/*`：Google Gemini 原生协议
+  - `POST /sdapi/v1/*`：Stable Diffusion WebUI 绘图接口（txt2img / img2img）
+- **思考链透传**：原生透传 Gemini 3.8 Flash / 3.7 的思维过程，兼容 OpenAI `reasoning_effort` 参数与 DeepSeek `reasoning_content` 字段格式。
+- **工具调用修复**：内置 AST 解析器，自动修正多轮 Function Calling 中的参数转义错误与类型不一致问题。
+- **多账号调度**：支持导入多个 Google 账号凭据，按轮询或负载策略分发请求。
+- **模型聚合**：将本地或专线模型（如智谱 GLM、WorkBuddy 等）统一代理并以标准 OpenAI 格式对外暴露。
 
 ---
 
