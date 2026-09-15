@@ -1,4 +1,4 @@
-# AGY2API: Antigravity Multi-Account Pool & High-Availability AI Gateway
+# AGY2API: Antigravity Unified AI Gateway
 
 <div align="center">
 
@@ -8,55 +8,37 @@
 [![Cursor](https://img.shields.io/badge/Cursor%20%2F%20Codex-Native%20Responses-000000.svg?style=for-the-badge)](https://cursor.com)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](https://github.com/Alphaxiaoteng/agy2api/pulls)
 
-**High-availability multi-account proxy gateway for Google Antigravity, featuring automatic rate-limit failover and unified protocol translation across OpenAI, Responses, Claude, and Gemini APIs.**
+**A local API gateway mapping Google Antigravity into standard OpenAI, Responses, Claude, and Gemini endpoints.**
 
-[English](README_EN.md) · [中文文档](README.md)
+[English](README_EN.md) · [中文文档](README.md) · [Endpoints](#supported-endpoints) · [Features](#what-it-does) · [Quick Start](#quick-start)
 
 </div>
 
 ---
 
-## Architectural Comparison
+## What It Does
 
-| Dimension | Legacy Reverse Proxy | AGY2API (This Gateway) |
-| :--- | :--- | :--- |
-| **Account Pool & 429 Mitigation** | Single token, single point of failure with frequent 429 errors | **Smart Account Pool (Round-Robin / Least-Used) + Auto 401 Isolation + Instant 429 Failover** |
-| **Weekly Quota Auto-Reset** | Dormant accounts after hitting quota limits, requires manual refresh | **Built-in Weekly Activation Manager, auto-probing and reactivating accounts every Monday at 00:00** |
-| **Protocol Support** | Only basic Chat Completions text stream | **Full Protocol Stack: OpenAI Chat, Responses API (`/v1/responses` with 1.5s keep-alive), Claude Messages, Gemini Native** |
-| **Tool Calling Sanitation** | Tool calling argument syntax breaks clients | **Built-in AST Tool-Call Sanitizer, fixing quotes, escapes, and JSON schema mismatches** |
-| **Heterogeneous Failover** | Single upstream path | **Integrates local WorkBuddy & ZCode GLM-5.3 lines with 0-latency auto-fallback to Gemini Pool** |
-
----
-
-##  Architecture
-
-```mermaid
-flowchart TD
-    Client[" Client: Cursor / Codex / Claude Code / Continue / Chatbox"] --> Gateway[" AGY2API Gateway (Port: 8045)"]
-    
-    subgraph Protocol_Layer ["1. Protocol Conversion & Guardrails"]
-        Gateway --> P1["/v1/responses (SSE + 1.5s Keep-alive)"]
-        Gateway --> P2["/v1/chat/completions (OpenAI Compatible)"]
-        Gateway --> P3["/v1/messages (Claude Compatible)"]
-        Gateway --> P4["/v1beta (Gemini Native)"]
-        Gateway --> AST["AST Tool Sanitizer & Schema Validator"]
-    end
-
-    subgraph Pool_Layer ["2. Multi-Account Pool Engine"]
-        P1 & P2 & P3 & P4 --> Scheduler["Smart Scheduler (Round-Robin / Least-Used)"]
-        Scheduler --> QuotaGuard["429 Rapid Failover & 401 Isolation"]
-        Scheduler --> WeeklyCron["Weekly Quota Reset Guardian"]
-    end
-
-    subgraph Upstream_Layer ["3. Upstream Dispatching & Failover"]
-        Scheduler --> AGY_Pool["Google Antigravity Account Pool (Gemini 3.8 Flash / 3.7 / 3.1 Pro)"]
-        Scheduler -.Local Line.-> ZCode["ZCode Line (GLM-5.3)"]
-        Scheduler -.Local Line.-> WorkBuddy["WorkBuddy Line"]
-        ZCode & WorkBuddy -.Fallback on Captcha/503.-> AGY_Pool
-    end
-```
+- **Universal Client Support**: Drop-in compatibility with Cursor, Codex Desktop, Claude Code, Continue, Chatbox, NextChat, and any tool accepting custom base URLs.
+- **Full Standard Endpoints**:
+  - `POST /v1/chat/completions`: Standard OpenAI Chat (SSE streaming, multimodal images, function calling).
+  - `POST /v1/responses`: Modern Responses API format (built for Codex Desktop & AI Agents, includes 1.5s keep-alive heartbeat).
+  - `POST /v1/messages`: Anthropic Claude protocol.
+  - `POST /v1beta/*`: Google Gemini native protocol.
+  - `POST /sdapi/v1/*`: Stable Diffusion WebUI drawing API (txt2img / img2img).
+- **Thinking Chain Transparency**: Full reasoning stream output for Gemini 3.8 Flash / 3.7, compliant with OpenAI `reasoning_effort` and DeepSeek `reasoning_content`.
+- **AST Tool-Call Sanitizer**: Automatically cleans and fixes parameter quotes, escapes, and schema mismatches during function calling.
+- **Multi-Account Rotation**: Load-balances requests across multiple Google accounts automatically.
 
 ---
+
+## Supported Endpoints & Client Config
+
+| Client | Base URL | Protocol | Example Models |
+| :--- | :--- | :--- | :--- |
+| **Cursor** | `http://127.0.0.1:8045/v1` | OpenAI | `gemini-3.8-flash`, `gemini-3.1-pro-high` |
+| **Codex Desktop** | `http://127.0.0.1:8045/v1` | Responses / Chat | `gemini-3.8-flash`, `auto` |
+| **Claude Code** | `http://127.0.0.1:8045/v1` | Claude Messages | `claude-sonnet-4-6`, `claude-opus-4-7-thinking` |
+| **Continue / Chatbox** | `http://127.0.0.1:8045/v1` | OpenAI / Ollama | `gemini-3.8-flash`, `gemini-3.7-flash-tiered` |
 
 ##  Quick Start
 

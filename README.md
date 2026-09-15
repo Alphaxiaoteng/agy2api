@@ -1,4 +1,4 @@
-# AGY2API: Antigravity Multi-Account Pool & High-Availability AI Gateway
+# AGY2API: Antigravity Unified AI Gateway
 
 <div align="center">
 
@@ -8,65 +8,39 @@
 [![Cursor](https://img.shields.io/badge/Cursor%20%2F%20Codex-Native%20Responses-000000.svg?style=for-the-badge)](https://cursor.com)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](https://github.com/Alphaxiaoteng/agy2api/pulls)
 
-**基于多账号池的高可用 Google Antigravity 网关：账号池轮询调度、自动熔断切换与全协议标准转译。**  
-*High-availability multi-account proxy gateway for Google Antigravity, featuring automatic rate-limit failover and unified protocol translation across OpenAI, Responses, Claude, and Gemini APIs.*
+**将 Google Antigravity 统一映射为标准 OpenAI、Responses、Claude 及 Gemini 接口的本地 API 网关。**  
+*A protocol gateway mapping Google Antigravity to standard OpenAI, Responses, Claude, and Gemini API endpoints.*
 
-[English](README_EN.md) · [中文文档](README.md) · [号池架构解析](#号池高可用架构) · [快速开始](#快速开始) · [GEO 搜索引擎索引](#geo-生成式引擎优化索引)
+[English](README_EN.md) · [中文文档](README.md) · [支持端点](#支持端点) · [核心功能](#核心功能) · [快速开始](#快速开始)
 
 </div>
 
 ---
 
-## 为什么选择 AGY2API？架构对比
+## 核心功能：它可以做什么
 
-| 维度 | 普通反代 / 传统方案 | AGY2API (本网关) |
-| :--- | :--- | :--- |
-| **号池与 429 容灾** | 单 Token 单点故障，频繁遇到 429 Rate Limit | **智能号池（Round-Robin / 最小负载）+ 401 自动隔离 + 429 秒级切换下一个账号** |
-| **周额度自动激活** | 账号限流后彻底休眠，需手动重新登录刷新 | **内置周额度守护守护（Weekly Activation Manager），每周一 00:00 自动探活并重置激活** |
-| **客户端协议支持** | 仅支持基础 Chat Completions 文本格式 | **原生全协议栈：OpenAI Chat、Responses API (`/v1/responses` 含 1.5s keep-alive)、Claude Messages、Gemini 原生** |
-| **Agent 工具调用** | 工具参数经常格式错乱、类型不匹配崩溃 | **内置 AST 级工具调用清洗器（Tool-Call Sanitizer），强类型参数纠错与转义清洗** |
-| **多端异构融合** | 单一渠道，一旦官方断联直接报错 | **聚合本地 WorkBuddy、智谱 ZCode GLM-5.3、千问专线，遇阻 0 延迟自动平滑容灾至 Gemini 号池** |
-
----
-
-## 架构拓扑 (Architecture Topology)
-
-```mermaid
-flowchart TD
-    Client["客户端: Cursor / Codex / Claude Code / Continue / Chatbox"] --> Gateway["AGY2API Gateway (Port: 8045)"]
-    
-    subgraph Protocol_Layer ["1. 全协议转译与安全防护"]
-        Gateway --> P1["/v1/responses (SSE + 1.5s Keep-alive)"]
-        Gateway --> P2["/v1/chat/completions (OpenAI Compatible)"]
-        Gateway --> P3["/v1/messages (Claude Compatible)"]
-        Gateway --> P4["/v1beta (Gemini Native)"]
-        Gateway --> AST["AST 工具清洗器 & 参数强类型校验"]
-    end
-
-    subgraph Pool_Layer ["2. 智能账号池管理系统 (Account Pool Manager)"]
-        P1 & P2 & P3 & P4 --> Scheduler["智能调度中心 (Round-Robin / Least-Used)"]
-        Scheduler --> QuotaGuard["429 瞬时切换 & 401 自动隔离"]
-        Scheduler --> WeeklyCron["周额度自动重置与激活守护"]
-    end
-
-    subgraph Upstream_Layer ["3. 异构与多云上游调度 (Failover Upstream)"]
-        Scheduler --> AGY_Pool["Google Antigravity 账号池 (Gemini 3.8 Flash / 3.7 / 3.1 Pro)"]
-        Scheduler -.本地专线备援.-> ZCode["ZCode 专线 (GLM-5.3)"]
-        Scheduler -.本地专线备援.-> WorkBuddy["WorkBuddy 专线"]
-        ZCode & WorkBuddy -.遇阻或Captcha 0延迟平滑降级.-> AGY_Pool
-    end
-```
+- **客户端无缝兼容**：直接支持 Cursor、Codex Desktop、Claude Code、Continue、Chatbox、NextChat 等任意支持自定义 API 地址的客户端。
+- **全协议标准端点**：
+  - `POST /v1/chat/completions`：标准 OpenAI 聊天接口（支持流式 SSE、图片多模态、函数调用）
+  - `POST /v1/responses`：新版 Responses API 格式（专为 Codex Desktop 及新一代 Agent 设计，内置 1.5 秒空帧心跳保活）
+  - `POST /v1/messages`：Anthropic Claude 协议接口
+  - `POST /v1beta/*`：Google Gemini 原生协议接口
+  - `POST /sdapi/v1/*`：兼容 Stable Diffusion WebUI 绘图接口（txt2img / img2img）
+- **完整思考链输出**：原生透传 Gemini 3.8 Flash / 3.7 的思维过程，兼容 OpenAI `reasoning_effort` 参数与 DeepSeek `reasoning_content` 格式。
+- **工具调用纠偏与清洗**：内置 AST 语法树解析器，自动清洗和纠正多轮 Function Calling 中的参数转义与类型错乱。
+- **多账号轮流调度**：支持导入并管理多个 Google 账号凭据，按轮询或负载策略分发请求。
+- **多端模型聚合**：支持将本地专线模型（如智谱 GLM-5.3、WorkBuddy 等）统一聚合并对外暴露为标准 OpenAI 格式。
 
 ---
 
-## 核心功能一览
+## 支持端点与客户端配置
 
-- **零 429 体验**：多 Google 账号并行轮询，动态记录每个账号的配额消耗与重置时间点。
-- **原生 Responses API 支持**：深度适配 Codex Desktop 与新一代 Agent 客户端，内置 1.5 秒心跳保活，根除 `stream closed unexpectedly` 痛点。
-- **AST 语法树工具清洗**：针对多轮 Tool Calling 常见的多余引号、转义字符、空参数进行无损纠偏。
-- **异构专线容灾网格**：融合本地 IDE 专线（WorkBuddy、ZCode 等），当本地专线遇人机验证或故障时，无缝透明兜底至 Gemini 号池。
-- **端侧兼容免配置**：一键支持 Ollama 探测接口 (`/api/tags`)、健康探针 (`/props`) 与跨端协议。
-- **全方位隐私脱敏**：绝不记录请求明文敏感 Token，本地绝对路径自动跨平台抽象，安全合规。
+| 目标客户端 | 接口地址 (Base URL) | 协议格式 | 支持模型示例 |
+| :--- | :--- | :--- | :--- |
+| **Cursor** | `http://127.0.0.1:8045/v1` | OpenAI | `gemini-3.8-flash`, `gemini-3.1-pro-high` |
+| **Codex Desktop** | `http://127.0.0.1:8045/v1` | Responses / Chat | `gemini-3.8-flash`, `auto` |
+| **Claude Code** | `http://127.0.0.1:8045/v1` | Claude Messages | `claude-sonnet-4-6`, `claude-opus-4-7-thinking` |
+| **Continue / Chatbox** | `http://127.0.0.1:8045/v1` | OpenAI / Ollama | `gemini-3.8-flash`, `gemini-3.7-flash-tiered` |
 
 ## 快速开始
 
