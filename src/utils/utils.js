@@ -155,12 +155,8 @@ export function modelMapping(modelName) {
   if (modelName === 'claude-opus-4-5') return 'claude-opus-4-6-thinking';
   if (modelName === 'claude-opus-4-5-thinking') return 'claude-opus-4-6-thinking';
   if (modelName === 'gemini-3.8-flash-high' || modelName === 'gemini-3.8-flash-tiered' || modelName === 'gemini-3.8-flash-medium' || modelName === 'gemini-3.8-flash-low') return modelName;
-  if (modelName === 'gemini-3.7-flash-tiered' || modelName === 'gemini-3.7-flash-high' || modelName === 'gemini-3.7-flash-medium' || modelName === 'gemini-3.7-flash-low') return modelName;
-  if (modelName === 'gemini-3.6-flash-tiered' || modelName === 'gemini-3.6-flash-high' || modelName === 'gemini-3.6-flash-medium' || modelName === 'gemini-3.6-flash-low') return modelName;
   if (modelName === 'gemini-3.8-flash') return 'gemini-3.8-flash-tiered';
-  if (modelName === 'gemini-3.7-flash') return 'gemini-3.7-flash-tiered';
-  if (modelName === 'gemini-3.6-flash') return 'gemini-3.6-flash-tiered';
-  if (modelName === 'gemini-3.1-pro-high') return 'gemini-pro-agent';
+  if (modelName === 'gemini-3.1-pro-high') return 'gemini-3.1-pro-high';
   if (modelName === 'gemini-2.5-flash-thinking') return 'gemini-2.5-flash';
   if (modelName === 'doubao-seedream-4.0') return 'doubao-seedream-4.0';
   if (modelName === 'doubao-5-pro') return 'doubao-5-pro';

@@ -106,6 +106,43 @@ export function sortEntriesByResetTime(entries, modelId, now = Date.now()) {
 }
 
 /**
+ * 优先级分层过滤：只在当前最高优先级分层（Tier）中选择候选账号。
+ * 确保周额度即将重置的账号（如15小时内重置）被优先彻底用满，绝不向2天或4天账号泄漏流量。
+ * @param {Array<{tokenId: string, token: Object}>} entries
+ * @param {string} modelId
+ * @param {number} [now]
+ * @returns {Array<{tokenId: string, token: Object}>}
+ */
+export function filterTopPriorityTier(entries, modelId, now = Date.now()) {
+  if (!modelId || !Array.isArray(entries) || entries.length < 2) return entries;
+
+  const scored = entries.map((entry, index) => {
+    const score = resetSortScore(entry.tokenId, modelId, now);
+    return { entry, index, ...score };
+  });
+
+  const weeklyResets = scored
+    .map(({ weeklyReset }) => weeklyReset)
+    .filter(Number.isFinite);
+  const earliestWeeklyReset = weeklyResets.length > 0 ? Math.min(...weeklyResets) : null;
+
+  const withTier = scored.map((score) => {
+    const weeklyGapBand = Number.isFinite(earliestWeeklyReset)
+      && Number.isFinite(score.weeklyReset)
+      && score.weeklyReset - earliestWeeklyReset > WEEKLY_RESET_PRIORITY_GAP_MS
+      ? 1
+      : 0;
+    // tier: weeklyBand (0: 48h内紧急, 1: 正常, 2: 见底) * 2 + weeklyGapBand
+    const tier = score.weeklyBand * 2 + weeklyGapBand;
+    return { ...score, weeklyGapBand, tier };
+  });
+
+  const minTier = Math.min(...withTier.map((s) => s.tier));
+  const topTier = withTier.filter((s) => s.tier === minTier);
+  return topTier.sort(compareResetScores).map(({ entry }) => entry);
+}
+
+/**
  * Token 管理器（重构版）
  * 负责 Token 的存储、轮询、刷新等功能
  */
@@ -453,7 +490,7 @@ export class TokenManager {
       }
     }
 
-    availableTokens = this._sortTokensByResetTime(availableTokens, modelId);
+    availableTokens = filterTopPriorityTier(availableTokens, modelId);
 
     let selected = null;
     if (sessionKey) {

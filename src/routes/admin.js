@@ -18,6 +18,7 @@ import dotenv from 'dotenv';
 import { LocalOAuthFlow } from '../auth/local_oauth_flow.js';
 import { buildModelCatalog } from '../services/modelCatalog.js';
 import weeklyActivationManager from '../auth/weekly_activation_manager.js';
+import { timingSafeStringEqual } from '../utils/timingSafe.js';
 
 const envPath = getEnvPath();
 
@@ -69,7 +70,7 @@ const cookieAuthMiddleware = (req, res, next) => {
   }
 };
 
-// 获取客户端 IP
+// 获取客户端 IP（含 XFF，仅用于日志与行为画像；客户端可伪造，不可用于安全判定）
 function getClientIP(req) {
   return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
     req.headers['x-real-ip'] ||
@@ -77,6 +78,11 @@ function getClientIP(req) {
     req.ip ||
     'unknown';
 }
+
+// 获取真实 TCP 对端地址：不受 XFF/x-real-ip 影响，且 app.set('trust proxy') 也不会污染它。
+// 任何与安全相关的判定（尤其是登录放行）必须用它，否则外部请求带一个
+// `X-Forwarded-For: 127.0.0.1` 就能伪装成本机。统一走 utils/peerIp.js。
+import { isLocalPeer } from '../utils/peerIp.js';
 
 // 登录接口
 router.post('/login', async (req, res) => {
@@ -98,8 +104,10 @@ router.post('/login', async (req, res) => {
 
   const { username, password } = req.body;
 
-  // 本机回环地址自动放行，免登录
-  const isLocal = clientIP === '127.0.0.1' || clientIP === '::1' || clientIP === '::ffff:127.0.0.1';
+  // 本机回环地址自动放行，免登录。
+  // 必须用真实 TCP 对端判定：用 getClientIP 的话，任何外部请求只要带
+  // `X-Forwarded-For: 127.0.0.1` 就能免密拿到管理员 JWT。
+  const isLocal = isLocalPeer(req);
   if (isLocal) {
     const token = generateToken({ username: config.admin.username, role: 'admin' });
     res.cookie('authToken', token, {
@@ -120,7 +128,7 @@ router.post('/login', async (req, res) => {
     return res.status(400).json({ success: false, message: '输入过长' });
   }
 
-  if (username === config.admin.username && password === config.admin.password) {
+  if (timingSafeStringEqual(username, config.admin.username) && timingSafeStringEqual(password, config.admin.password)) {
     const token = generateToken({ username, role: 'admin' });
 
     // 设置 HttpOnly Cookie
@@ -152,7 +160,7 @@ router.post('/logout', (req, res) => {
 
 // 验证密码（用于敏感操作）
 function verifyPassword(password) {
-  return password === config.admin.password;
+  return timingSafeStringEqual(password, config.admin.password);
 }
 
 // Token管理API - 需要JWT认证（使用 Cookie 优先）

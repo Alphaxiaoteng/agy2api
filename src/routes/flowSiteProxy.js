@@ -4,6 +4,7 @@ import logger from '../utils/logger.js';
 import { CookieJar } from '../utils/flowCookieJar.js';
 import { fetchEgoGoogleCookies } from '../utils/flowEgoCookies.js';
 import { rewriteHtml, rewriteLocation, parseUpstreamPath } from '../utils/flowProxyRewrite.js';
+import { isLocalPeer } from '../utils/peerIp.js';
 
 const flowCookieJar = new CookieJar();
 let syncing = null;
@@ -24,23 +25,15 @@ const DROP_RES = new Set([
   'cross-origin-resource-policy', 'set-cookie'
 ]);
 
-function getClientIP(req) {
-  return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
-    req.headers['x-real-ip'] ||
-    req.socket?.remoteAddress ||
-    req.ip ||
-    'unknown';
-}
-
+// 本地豁免必须基于真实 TCP 对端，不能基于客户端可控的 XFF/X-Real-IP，
+// 否则任意外部请求带 `X-Forwarded-For: 127.0.0.1` 即可获得 admin 身份。
 export function localFlowAuth(req, res, next) {
   let token = req.cookies?.authToken;
   if (!token) {
     const header = req.headers.authorization;
     token = header?.startsWith('Bearer ') ? header.slice(7) : null;
   }
-  const clientIP = getClientIP(req);
-  const isLocal = clientIP === '127.0.0.1' || clientIP === '::1' || clientIP === '::ffff:127.0.0.1';
-  if (isLocal && !token) {
+  if (!token && isLocalPeer(req)) {
     req.user = { username: config.admin.username, role: 'admin' };
     return next();
   }

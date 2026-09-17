@@ -89,29 +89,18 @@ let modelListCacheTime = 0;
 // 默认模型列表（当 API 请求失败时使用）
 // 使用 Object.freeze 防止意外修改，并帮助 V8 优化
 const DEFAULT_MODELS = Object.freeze([
-  'claude-opus-4-6',
-  'claude-opus-4-6-thinking',
-  'claude-opus-4-7',
-  'claude-opus-4-7-thinking',
-  'claude-sonnet-4-6',
-  'claude-sonnet-4-6-thinking',
+  'gemini-3.8-flash',
   'gemini-3.1-pro-high',
-  'gemini-2.5-flash-lite',
+  'claude-sonnet-4-6-thinking',
+  'claude-opus-4-6-thinking',
+  'claude-opus-4-7-thinking',
   'gemini-3.1-flash-image',
-  'gemini-3.1-flash-image-4K',
   'gemini-3.1-flash-image-2K',
-  'gemini-2.5-flash-thinking',
-  'gemini-2.5-pro',
-  'gemini-2.5-flash',
-  'gemini-3.1-pro-low',
-  'chat_20706',
-  'rev19-uic3-1p',
-  'gpt-oss-120b-medium',
-  'chat_23310'
+  'gemini-3.1-flash-image-4K'
 ]);
 
 // 生成默认模型列表响应
-function getDefaultModelList() {
+export function getDefaultModelList() {
   const created = Math.floor(Date.now() / 1000);
   return {
     object: 'list',
@@ -357,7 +346,8 @@ async function fetchRawModels(headers, token) {
     });
     return data;
   } catch (error) {
-    await handleApiError(error, token);
+    logger.warn('fetchRawModels 远端拉取失败，将自动使用精选 AGY 默认模型列表:', error.message);
+    return null;
   }
 }
 

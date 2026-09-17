@@ -18,58 +18,26 @@ import logger from "../utils/logger.js";
 
 export const CODEBUDDY_BIN = "/Applications/WorkBuddy.app/Contents/Resources/app.asar.unpacked/cli/bin/codebuddy";
 
-// WorkBuddy 专区模型定义 (以 DeepSeek V4.1 Flash 1000K 上下文为官方最高上限)
+// WorkBuddy 专区模型定义 (精简无重复，以 DeepSeek V4.1 Flash 为官方主力)
 export const WORKBUDDY_MODELS = [
-  { id: "workbuddy", target: "deepseek-v4.1-flash", effort: "medium", autocompact: "300k", display_name: "DeepSeek V4.1", vendor: "workbuddy", library: "workbuddy", reasoning: true },
-  { id: "workbuddy/deepseek-v4.1-flash", target: "deepseek-v4.1-flash", effort: "medium", autocompact: "300k", display_name: "DeepSeek V4.1", vendor: "workbuddy", library: "workbuddy", reasoning: true },
-  { id: "deepseek-v4.1-flash", target: "deepseek-v4.1-flash", effort: "medium", autocompact: "300k", display_name: "DeepSeek V4.1", vendor: "workbuddy", library: "workbuddy", reasoning: true },
-  { id: "workbuddy/hy4", target: "hy4-preview-f", effort: "medium", autocompact: "300k", display_name: "混元 4", vendor: "workbuddy", library: "workbuddy", reasoning: true },
-  { id: "hy4", target: "hy4-preview-f", effort: "medium", autocompact: "300k", display_name: "混元 4", vendor: "workbuddy", library: "workbuddy", reasoning: true },
-  { id: "hy4-preview", target: "hy4-preview-f", effort: "medium", autocompact: "300k", display_name: "混元 4", vendor: "workbuddy", library: "workbuddy", reasoning: true },
-  { id: "workbuddy/hy4-preview", target: "hy4-preview-f", effort: "medium", autocompact: "300k", display_name: "混元 4", vendor: "workbuddy", library: "workbuddy", reasoning: true },
-  { id: "workbuddy/hy3", target: "hy3", effort: "medium", autocompact: "262k", display_name: "混元 3", vendor: "workbuddy", library: "workbuddy", reasoning: true },
-  { id: "hy3", target: "hy3", effort: "medium", autocompact: "262k", display_name: "混元 3", vendor: "workbuddy", library: "workbuddy", reasoning: true },
-  { id: "workbuddy/deepseek-v4-pro", target: "deepseek-v4-pro", effort: "medium", autocompact: "300k", display_name: "DeepSeek V4 Pro", vendor: "workbuddy", library: "workbuddy", reasoning: true },
+  { id: "deepseek-v4.1-flash", target: "deepseek-v4.1-flash", effort: "medium", autocompact: "300k", display_name: "DeepSeek V4.1 Flash", vendor: "workbuddy", library: "workbuddy", reasoning: true },
   { id: "deepseek-v4-pro", target: "deepseek-v4-pro", effort: "medium", autocompact: "300k", display_name: "DeepSeek V4 Pro", vendor: "workbuddy", library: "workbuddy", reasoning: true },
-  { id: "workbuddy/kimi-k3-1", target: "kimi-k3-1", effort: "medium", autocompact: "300k", display_name: "Kimi K3.1", vendor: "workbuddy", library: "workbuddy", reasoning: true },
+  { id: "hy4", target: "hy4-preview-f", effort: "medium", autocompact: "300k", display_name: "混元 4", vendor: "workbuddy", library: "workbuddy", reasoning: true },
   { id: "kimi-k3-1", target: "kimi-k3-1", effort: "medium", autocompact: "300k", display_name: "Kimi K3.1", vendor: "workbuddy", library: "workbuddy", reasoning: true },
-  { id: "workbuddy/kimi-k2.7", target: "kimi-k2.7", effort: "medium", autocompact: "300k", display_name: "Kimi K2.7", vendor: "workbuddy", library: "workbuddy", reasoning: true },
-  { id: "workbuddy/minimax-m3", target: "minimax-m3", effort: "medium", autocompact: "300k", display_name: "MiniMax M3", vendor: "workbuddy", library: "workbuddy", reasoning: true },
-  { id: "minimax-m3", target: "minimax-m3", effort: "medium", autocompact: "300k", display_name: "MiniMax M3", vendor: "workbuddy", library: "workbuddy", reasoning: true },
-  { id: "workbuddy/hy4-preview-f", target: "hy4-preview-f", effort: "medium", autocompact: "300k", display_name: "混元 4 Preview", vendor: "workbuddy", library: "workbuddy", reasoning: true },
-  { id: "hy4-preview-f", target: "hy4-preview-f", effort: "medium", autocompact: "300k", display_name: "混元 4 Preview", vendor: "workbuddy", library: "workbuddy", reasoning: true },
-  { id: "workbuddy/hy3-x", target: "hy3-x", effort: "medium", autocompact: "262k", display_name: "混元 3-X", vendor: "workbuddy", library: "workbuddy", reasoning: true },
-  { id: "hy3-x", target: "hy3-x", effort: "medium", autocompact: "262k", display_name: "混元 3-X", vendor: "workbuddy", library: "workbuddy", reasoning: true }
+  { id: "minimax-m3", target: "minimax-m3", effort: "medium", autocompact: "300k", display_name: "MiniMax M3", vendor: "workbuddy", library: "workbuddy", reasoning: true }
 ];
 
-// ZCode 专区模型定义 (以 GLM-5.3 Flash 智谱高思考为主力)
+// ZCode 专区模型定义 (以 GLM-5.3 旗舰为主，去除 5.1/5.2 及重复别名)
 export const ZCODE_MODELS = [
-  { id: "zcode", target: "glm-5.3-flash", effort: "high", display_name: "GLM-5.3 Flash", vendor: "zcode", library: "zcode", reasoning: true },
-  { id: "zcode/glm-5.3-flash", target: "glm-5.3-flash", effort: "high", display_name: "GLM-5.3 Flash", vendor: "zcode", library: "zcode", reasoning: true },
   { id: "glm-5.3-flash", target: "glm-5.3-flash", effort: "high", display_name: "GLM-5.3 Flash", vendor: "zcode", library: "zcode", reasoning: true },
-  { id: "zcode/glm-5.3", target: "glm-5.3", effort: "high", display_name: "GLM-5.3", vendor: "zcode", library: "zcode", reasoning: true },
   { id: "glm-5.3", target: "glm-5.3", effort: "high", display_name: "GLM-5.3", vendor: "zcode", library: "zcode", reasoning: true },
-  { id: "zcode/glm-5.2", target: "glm-5.2", effort: "medium", display_name: "GLM-5.2", vendor: "zcode", library: "zcode", reasoning: true },
-  { id: "glm-5.2", target: "glm-5.2", effort: "medium", display_name: "GLM-5.2", vendor: "zcode", library: "zcode", reasoning: true },
-  { id: "zcode/glm-5.1", target: "glm-5.1", effort: "medium", display_name: "GLM-5.1", vendor: "zcode", library: "zcode", reasoning: true },
-  { id: "glm-5.1", target: "glm-5.1", effort: "medium", display_name: "GLM-5.1", vendor: "zcode", library: "zcode", reasoning: true },
-  { id: "zcode/glm-5v-turbo", target: "glm-5v-turbo", effort: "minimal", display_name: "GLM-5V Turbo", vendor: "zcode", library: "zcode", reasoning: false },
   { id: "glm-5v-turbo", target: "glm-5v-turbo", effort: "minimal", display_name: "GLM-5V Turbo", vendor: "zcode", library: "zcode", reasoning: false }
 ];
 
-// QwenWork 千问办公专区模型定义 (以 Qwen3.8-Flash 1M 上下文为官方主力旗舰)
+// QwenWork 千问办公专区模型定义 (以 Qwen3.8-Flash 旗舰为主，去除 7 个重复别名)
 export const QWENWORK_MODELS = [
-  { id: "qwen", target: "flash", effort: "high", display_name: "Qwen 3.8 Flash (千问办公)", vendor: "qwenwork", library: "qwenwork", reasoning: true },
-  { id: "qwenwork", target: "flash", effort: "high", display_name: "Qwen 3.8 Flash (千问办公)", vendor: "qwenwork", library: "qwenwork", reasoning: true },
   { id: "qwen3.8-flash", target: "flash", effort: "high", display_name: "Qwen 3.8 Flash (千问办公)", vendor: "qwenwork", library: "qwenwork", reasoning: true },
-  { id: "qwen3.8flash", target: "flash", effort: "high", display_name: "Qwen 3.8 Flash (千问办公)", vendor: "qwenwork", library: "qwenwork", reasoning: true },
-  { id: "qwen/qwen3.8-flash", target: "flash", effort: "high", display_name: "Qwen 3.8 Flash (千问办公)", vendor: "qwenwork", library: "qwenwork", reasoning: true },
-  { id: "qwenwork/qwen3.8-flash", target: "flash", effort: "high", display_name: "Qwen 3.8 Flash (千问办公)", vendor: "qwenwork", library: "qwenwork", reasoning: true },
-  { id: "qwen-flash", target: "flash", effort: "high", display_name: "Qwen 3.8 Flash (千问办公)", vendor: "qwenwork", library: "qwenwork", reasoning: true },
-  { id: "qwen/flash", target: "flash", effort: "high", display_name: "Qwen 3.8 Flash (千问办公)", vendor: "qwenwork", library: "qwenwork", reasoning: true },
-  { id: "qwen3.8-max", target: "qwen3.8-max-preview", effort: "high", display_name: "Qwen 3.8 Max (千问办公)", vendor: "qwenwork", library: "qwenwork", reasoning: true },
-  { id: "qwen/qwen3.8-max", target: "qwen3.8-max-preview", effort: "high", display_name: "Qwen 3.8 Max (千问办公)", vendor: "qwenwork", library: "qwenwork", reasoning: true },
-  { id: "qwenwork/qwen3.8-max", target: "qwen3.8-max-preview", effort: "high", display_name: "Qwen 3.8 Max (千问办公)", vendor: "qwenwork", library: "qwenwork", reasoning: true }
+  { id: "qwen3.8-max", target: "qwen3.8-max-preview", effort: "high", display_name: "Qwen 3.8 Max (千问办公)", vendor: "qwenwork", library: "qwenwork", reasoning: true }
 ];
 
 
@@ -123,6 +91,7 @@ export function getLocalAppModelsList(libraryFilter = "") {
 export function isLocalAppRoutableModel(rawModel) {
   if (typeof rawModel !== "string" || !rawModel.trim()) return false;
   const m = rawModel.trim().toLowerCase();
+  if (m.startsWith("tongyi-tp/") || m.startsWith("bailian/") || m.startsWith("free/")) return false;
   if (m === "workbuddy" || m.startsWith("workbuddy/") || m.startsWith("wb/")) return true;
   if (m === "codebuddy" || m.startsWith("codebuddy/")) return true;
   if (m === "zcode" || m.startsWith("zcode/")) return true;

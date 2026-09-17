@@ -6,23 +6,20 @@ import { listModels, getCapabilities } from '../config/flowCapabilities.js';
 import { flowQueue } from './flowApi.js';
 import { flowExtensionBridge } from '../services/flowExtensionBridge.js';
 import { alphaNexusFlowBridge } from '../services/alphaNexusFlowBridge.js';
+import { isLocalPeer } from '../utils/peerIp.js';
 
 const router = express.Router();
 
-function getDirectSocketIP(req) {
-  return req.socket?.remoteAddress || 'unknown';
-}
-
+// 本地 IP 豁免仅信任底层的直接 TCP 连接 (req.socket.remoteAddress)，防止 X-Forwarded-For 伪造攻击。
+// 该判定原先内联在 getDirectSocketIP 里，现已统一到 utils/peerIp.js，
+// 避免 admin.js / flowSiteProxy.js 各写一份导致修一处漏一处。
 function cookieAuthMiddleware(req, res, next) {
   let token = req.cookies?.authToken;
   if (!token) {
     const h = req.headers.authorization;
     token = h?.startsWith('Bearer ') ? h.slice(7) : null;
   }
-  // 本地 IP 豁免仅信任底层的直接 TCP 连接 (req.socket.remoteAddress)，防止 X-Forwarded-For 伪造攻击
-  const socketIP = getDirectSocketIP(req);
-  const isLocal = socketIP === '127.0.0.1' || socketIP === '::1' || socketIP === '::ffff:127.0.0.1';
-  if (isLocal && !token) {
+  if (!token && isLocalPeer(req)) {
     req.user = { username: config.admin.username, role: 'admin' };
     return next();
   }

@@ -249,6 +249,36 @@ function mergePool(pool, cockpitEntries, { prune }) {
   return { pool: { salt: pool.salt, tokens }, added, updated, removed };
 }
 
+// 每次同步都会写一份带时间戳的备份。只留最近若干份：原先只增不删，
+// 实测已累积 500+ 个文件、随每次 reloadProxy 继续增长，最终会吃满磁盘。
+const COCKPIT_BACKUP_KEEP = 5;
+
+async function pruneCockpitBackups() {
+  const dir = path.dirname(POOL_PATH);
+  const base = path.basename(POOL_PATH);
+  const prefix = `${base}.bak-cockpit-`;
+  let names;
+  try {
+    names = (await fsp.readdir(dir)).filter((n) => n.startsWith(prefix));
+  } catch {
+    return 0;
+  }
+  if (names.length <= COCKPIT_BACKUP_KEEP) return 0;
+
+  // 文件名后缀是定长的 epoch 毫秒，字典序即时间序
+  names.sort();
+  let removed = 0;
+  for (const name of names.slice(0, names.length - COCKPIT_BACKUP_KEEP)) {
+    try {
+      await fsp.unlink(path.join(dir, name));
+      removed += 1;
+    } catch {
+      // 已被其它进程清理，忽略
+    }
+  }
+  return removed;
+}
+
 async function secureWritePool(pool) {
   const dir = path.dirname(POOL_PATH);
   await fsp.mkdir(dir, { recursive: true });
@@ -256,6 +286,10 @@ async function secureWritePool(pool) {
   if (fs.existsSync(POOL_PATH)) {
     await fsp.copyFile(POOL_PATH, backup);
     log('已备份', path.basename(backup));
+    const pruned = await pruneCockpitBackups();
+    if (pruned > 0) {
+      log('已清理旧备份', `${pruned} 个（保留最近 ${COCKPIT_BACKUP_KEEP} 份）`);
+    }
   }
   const temp = `${POOL_PATH}.${process.pid}.${Date.now()}.tmp`;
   await fsp.writeFile(temp, `${JSON.stringify(pool, null, 2)}\n`, 'utf8');

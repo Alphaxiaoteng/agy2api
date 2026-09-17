@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import quotaManager from '../src/auth/quota_manager.js';
-import { sortEntriesByResetTime } from '../src/auth/token_manager.js';
+import { sortEntriesByResetTime, filterTopPriorityTier } from '../src/auth/token_manager.js';
 import { StrategyFactory } from '../src/auth/token_rotation_strategy.js';
 
 const originalCache = new Map(quotaManager.cache);
@@ -132,7 +132,64 @@ try {
     'weekly-late'
   ]);
 
-  console.log('reset-priority sort passed');
+  // 测试高优分层隔离：3个15小时内重置账号必须被严格隔离，绝不泄漏至2天与4天账号
+  quotaManager.cache.clear();
+  const testNow = Date.parse('2026-09-16T02:00:00Z');
+  const claudeModel = 'claude-sonnet-4-6-thinking';
+
+  // 3个15小时重置账号
+  quotaManager.cache.set('chenpaiteng', {
+    models: { [claudeModel]: { r: 0.5, t: '2026-09-16T03:21:00Z' } },
+    weeklyResetTimes: { claude: '2026-09-16T16:27:00Z' }, // 14h27m
+    weeklyRemaining: { claude: 0.29 }
+  });
+  quotaManager.cache.set('sokinaskhatun', {
+    models: { [claudeModel]: { r: 0.5, t: '2026-09-16T06:35:00Z' } },
+    weeklyResetTimes: { claude: '2026-09-16T17:21:00Z' }, // 15h21m
+    weeklyRemaining: { claude: 0.39 }
+  });
+  quotaManager.cache.set('pksbuss', {
+    models: { [claudeModel]: { r: 0.5, t: '2026-09-16T05:36:00Z' } },
+    weeklyResetTimes: { claude: '2026-09-16T17:21:00Z' }, // 15h21m
+    weeklyRemaining: { claude: 0.67 }
+  });
+
+  // 2天与4天账号
+  quotaManager.cache.set('bejeje92', {
+    models: { [claudeModel]: { r: 0.89, t: '2026-09-16T03:29:00Z' } },
+    weeklyResetTimes: { claude: '2026-09-18T15:14:00Z' }, // 2d 13h
+    weeklyRemaining: { claude: 0.96 }
+  });
+  quotaManager.cache.set('quanghuychuong', {
+    models: { [claudeModel]: { r: 0.5, t: '2026-09-16T03:53:00Z' } },
+    weeklyResetTimes: { claude: '2026-09-20T02:15:00Z' }, // 4d
+    weeklyRemaining: { claude: 0.54 }
+  });
+
+  const allFive = [
+    entry('bejeje92'),
+    entry('quanghuychuong'),
+    entry('chenpaiteng'),
+    entry('sokinaskhatun'),
+    entry('pksbuss')
+  ];
+
+  const topTier = filterTopPriorityTier(allFive, claudeModel, testNow).map(e => e.tokenId);
+  assert.deepEqual(topTier, ['chenpaiteng', 'pksbuss', 'sokinaskhatun']);
+
+  // 验证轮询只在这3个15小时账号之间轮转，绝不会选到 bejeje92 或 quanghuychuong
+  const rrPicked = Array.from({ length: 9 }, () => strategy.selectToken(
+    filterTopPriorityTier(allFive, claudeModel, testNow)
+  ).tokenId);
+  assert.ok(rrPicked.every(id => ['chenpaiteng', 'sokinaskhatun', 'pksbuss'].includes(id)));
+  assert.ok(!rrPicked.includes('bejeje92'));
+  assert.ok(!rrPicked.includes('quanghuychuong'));
+
+  // 只有当3个15小时账号全部不可用时，才降级到 bejeje92（2天账号优先于4天账号）
+  const fallbackTier = filterTopPriorityTier([entry('bejeje92'), entry('quanghuychuong')], claudeModel, testNow).map(e => e.tokenId);
+  assert.deepEqual(fallbackTier, ['bejeje92']);
+
+  console.log('reset-priority sort & tier isolation passed');
 } catch (error) {
   console.error(error);
   process.exitCode = 1;

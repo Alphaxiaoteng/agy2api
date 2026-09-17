@@ -6,10 +6,15 @@ services:
     ports:
       - "8045:8045"
     environment:
-      - API_KEY=${API_KEY:-sk-text}
-      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
-      - JWT_SECRET=${JWT_SECRET:-your-jwt-secret-key-change-this-in-production}
+      # 不要把 API_KEY / ADMIN_USERNAME / ADMIN_PASSWORD / JWT_SECRET 写在这里。
+      # 原因有二：
+      #   1) 原来用 :- 兜的是 admin / admin123 / sk-text / 公开 JWT 常量 —— 等于把
+      #      应用「缺省即随机生成强凭据」的行为换成可猜的口令。
+      #   2) 改成 ${API_KEY:-} 更糟：src/server/index.js:114 是 `if (apiKey)`，
+      #      空串会让 API 中间件**整段跳过**，即 API 变成完全无鉴权。
+      # 这三项本来就有正路：本文件已把 ./.env 挂到 /app/.env，应用用 dotenv 读它
+      #（src/config/config.js:203）。.env 里没写 → process.env 为 undefined →
+      # 应用自动生成随机密钥；写了 → 以 .env 为准。
       - PROXY=${PROXY:-}
       - SYSTEM_INSTRUCTION=${SYSTEM_INSTRUCTION:-}
       - IMAGE_BASE_URL=${IMAGE_BASE_URL:-}

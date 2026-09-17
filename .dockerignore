@@ -8,6 +8,7 @@ README.md
 coverage
 .DS_Store
 data
+dist
 public/images/*.jpg
 public/images/*.png
 public/images/*.gif

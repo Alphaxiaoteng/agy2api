@@ -7,7 +7,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { Router } from 'express';
-import { getAvailableModels } from '../api/client.js';
+import { getAvailableModels, getDefaultModelList } from '../api/client.js';
 import { handleOpenAIRequest } from '../server/handlers/openai.js';
 import { isCodexRoutableModel, mergeCodexModels, proxyOpenAIChat } from '../services/codexUpstream.js';
 import { isFreeRoutableModel, mergeDualLibraryModels, proxyFreeChat, getAutoPoolStatus, getFreeModelsList } from '../services/freeModelUpstream.js';
@@ -121,18 +121,47 @@ router.get('/models', async (req, res) => {
       });
     }
 
-    const rawModels = await getAvailableModels();
+    let rawModels;
+    try {
+      rawModels = await getAvailableModels();
+    } catch (err) {
+      logger.warn('获取可用模型列表异常，自动降级为精选 AGY 默认模型:', err.message);
+      rawModels = getDefaultModelList();
+    }
     const withCodex = await mergeCodexModels(rawModels);
     const dualLibrary = await mergeDualLibraryModels(withCodex, req.query);
 
-    if (!libFilter || libFilter === 'local' || libFilter === 'all') {
+    if (libFilter === 'local' || libFilter === 'all') {
       const localModels = getLocalAppModelsList();
       if (Array.isArray(dualLibrary.data)) {
         // 将本地旗舰应用置于首部以方便调用与区分
         dualLibrary.data = [...localModels, ...dualLibrary.data];
-        dualLibrary.total = (dualLibrary.total || 0) + localModels.length;
         dualLibrary.libraries = ['workbuddy', 'zcode', 'qwenwork', 'agy', 'free'];
       }
+    }
+
+    // 严格全局去重与代际收敛：过滤老旧 Gemini (有 3.8 绝不保留 3.7/3.6)，模型 id 唯一去重
+    if (Array.isArray(dualLibrary.data)) {
+      const filtered = dualLibrary.data.filter((m) => {
+        const id = (m.id || '').toLowerCase();
+        if (id.includes('gemini-3.7') || id.includes('gemini-3.6') || id.includes('gemini-3.5') || id.includes('gemini-2.')) {
+          return false;
+        }
+        return true;
+      });
+
+      const seen = new Set();
+      const deduped = [];
+      for (const item of filtered) {
+        if (!item || !item.id) continue;
+        const normId = item.id.trim();
+        if (seen.has(normId)) continue;
+        seen.add(normId);
+        deduped.push(item);
+      }
+
+      dualLibrary.data = deduped;
+      dualLibrary.total = deduped.length;
     }
 
     // 重点：同时挂载 Responses API 规范的 models 数组，确保 Codex Desktop 与 Responses API client 解析成功

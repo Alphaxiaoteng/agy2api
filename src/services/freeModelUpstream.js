@@ -18,24 +18,42 @@ const httpsAgent = new https.Agent({ keepAlive: true, keepAliveMsecs: 30000, max
 
 // 精选保留的 AGY 旗舰模型列表（过滤掉几十个内部测试与废弃预览模型）
 const CURATED_AGY_MODELS = [
+  { id: "gemini-3.8-flash", display_name: "Gemini 3.8 Flash (毫秒极速)", reasoning: false },
   { id: "gemini-3.1-pro-high", display_name: "Gemini 3.1 Pro (深度思考/250k)", reasoning: true },
   { id: "claude-sonnet-4-6-thinking", display_name: "Claude Sonnet 4.6 (思考流/编程)", reasoning: true },
-  { id: "claude-sonnet-4-6", display_name: "Claude Sonnet 4.6 (标准流)", reasoning: false },
-  { id: "gemini-3.8-flash", display_name: "Gemini 3.8 Flash (毫秒极速)", reasoning: false },
-  { id: "claude-opus-4-7-thinking", display_name: "Claude Opus 4.7 (旗舰思考)", reasoning: true },
-  { id: "gemini-3.1-flash-image", display_name: "Gemini 3.1 Flash Image (视觉/绘图)", reasoning: false }
+  { id: "claude-opus-4-6-thinking", display_name: "Claude Opus 4.6 (旗舰思考)", reasoning: true },
+  { id: "claude-opus-4-7-thinking", display_name: "Claude Opus 4.7 (最新旗舰思考)", reasoning: true },
+  { id: "gemini-3.1-flash-image", display_name: "Gemini 3.1 Flash Image (视觉/绘图)", reasoning: false },
+  { id: "gemini-3.1-flash-image-2K", display_name: "Gemini 3.1 Flash Image 2K", reasoning: false },
+  { id: "gemini-3.1-flash-image-4K", display_name: "Gemini 3.1 Flash Image 4K", reasoning: false }
 ];
 
-// 三大免费渠道精选模型（严格排除 tokenplan）
+// 免费及外部精选模型渠道定义
 const PROVIDER_DEFINITIONS = {
+  bailian: {
+    id: "bailian",
+    name: "百炼 Coding Plan (Bailian)",
+    baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    models: [
+      { id: "deepseek-v4.1-flash", name: "DeepSeek V4.1 Flash (百炼)", reasoning: true, priority: 1 }
+    ]
+  },
+  "tongyi-tp": {
+    id: "tongyi-tp",
+    name: "通义 Token Plan",
+    baseURL: "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+    models: [
+      { id: "deepseek-v4.1-flash", name: "DeepSeek V4.1 Flash (Token Plan)", reasoning: true, priority: 1 },
+      { id: "qwen3.8-flash", name: "Qwen 3.8 Flash (Token Plan)", reasoning: true, priority: 2 }
+    ]
+  },
   doubao: {
     id: "doubao",
     name: "火山引擎 (Doubao)",
     baseURL: "https://ark.cn-beijing.volces.com/api/v3",
     models: [
-      { id: "deepseek-v4-flash-ga-260731", name: "DeepSeek V4 Flash (火山)", reasoning: true, priority: 1 },
-      { id: "doubao-seed-evolving", name: "Doubao Seed Evolving (火山)", reasoning: false, priority: 3 },
-      { id: "deepseek-v4-pro-ga-260813", name: "DeepSeek V4 Pro (火山)", reasoning: true, priority: 4 }
+      { id: "deepseek-v4.1-flash", name: "DeepSeek V4.1 Flash (火山)", reasoning: true, priority: 1 },
+      { id: "doubao-seed-evolving", name: "Doubao Seed Evolving (火山)", reasoning: false, priority: 2 }
     ]
   },
   modelscope: {
@@ -43,10 +61,8 @@ const PROVIDER_DEFINITIONS = {
     name: "魔搭社区 (ModelScope)",
     baseURL: "https://api-inference.modelscope.cn/v1",
     models: [
-      { id: "deepseek-ai/DeepSeek-V4-Pro", name: "DeepSeek V4 Pro (魔搭)", reasoning: true, priority: 1 },
-      { id: "Qwen/Qwen3.5-397B-A17B", name: "Qwen 3.5 397B (魔搭)", reasoning: true, priority: 2 },
-      { id: "Qwen/Qwen3.8-27B", name: "Qwen 3.8 27B (魔搭)", reasoning: false, priority: 3 },
-      { id: "Shanghai_AI_Laboratory/Intern-S2-Preview", name: "Intern S2 Preview (魔搭)", reasoning: true, priority: 4 }
+      { id: "deepseek-ai/DeepSeek-V4.1-Flash", name: "DeepSeek V4.1 Flash (魔搭)", reasoning: true, priority: 1 },
+      { id: "Qwen/Qwen3.8-27B", name: "Qwen 3.8 27B (魔搭)", reasoning: false, priority: 2 }
     ]
   },
   "opencode-free": {
@@ -55,21 +71,22 @@ const PROVIDER_DEFINITIONS = {
     baseURL: "https://opencode.ai/zen/v1",
     keyless: true,
     models: [
-      { id: "nemotron-3.5-lightning-free", name: "Nemotron 3.5 Lightning (Free)", reasoning: true, priority: 3 },
-      { id: "nemotron-3-ultra-free", name: "Nemotron 3 Ultra (Free)", reasoning: true, priority: 4 }
+      { id: "nemotron-3.5-lightning-free", name: "Nemotron 3.5 Lightning (Free)", reasoning: true, priority: 1 },
+      { id: "nemotron-3-ultra-free", name: "Nemotron 3 Ultra (Free)", reasoning: true, priority: 2 }
     ]
   }
 };
 
-// Auto 候选池按优先级调度
+// Auto 候选池按优先级调度（百炼 Coding Plan 与通义 Token Plan 双引擎优先，火山与魔搭兜底，DeepSeek 全面升级至 4.1 Flash，杜绝重复）
 const AUTO_POOL_CANDIDATES = [
-  { providerId: "modelscope", model: "deepseek-ai/DeepSeek-V4-Pro", label: "魔搭 DeepSeek V4 Pro", priority: 1 },
-  { providerId: "doubao", model: "deepseek-v4-flash-ga-260731", label: "火山 DeepSeek V4 Flash", priority: 2 },
-  { providerId: "modelscope", model: "Qwen/Qwen3.5-397B-A17B", label: "魔搭 Qwen 3.5 397B", priority: 3 },
-  { providerId: "opencode-free", model: "nemotron-3.5-lightning-free", label: "OpenCode Nemotron 3.5", priority: 4 },
-  { providerId: "doubao", model: "doubao-seed-evolving", label: "火山 Doubao Seed Evolving", priority: 5 },
-  { providerId: "doubao", model: "deepseek-v4-pro-ga-260813", label: "火山 DeepSeek V4 Pro", priority: 6 },
-  { providerId: "opencode-free", model: "nemotron-3-ultra-free", label: "OpenCode Nemotron 3 Ultra", priority: 7 }
+  { providerId: "bailian", model: "deepseek-v4.1-flash", label: "百炼 Coding Plan DeepSeek V4.1 Flash", priority: 1 },
+  { providerId: "tongyi-tp", model: "deepseek-v4.1-flash", label: "通义 Token Plan DeepSeek V4.1 Flash", priority: 2 },
+  { providerId: "doubao", model: "deepseek-v4.1-flash", label: "火山 DeepSeek V4.1 Flash", priority: 3 },
+  { providerId: "modelscope", model: "deepseek-ai/DeepSeek-V4.1-Flash", label: "魔搭 DeepSeek V4.1 Flash", priority: 4 },
+  { providerId: "tongyi-tp", model: "qwen3.8-flash", label: "通义 Token Plan Qwen 3.8 Flash", priority: 5 },
+  { providerId: "opencode-free", model: "nemotron-3.5-lightning-free", label: "OpenCode Nemotron 3.5", priority: 6 },
+  { providerId: "doubao", model: "doubao-seed-evolving", label: "火山 Doubao Seed Evolving", priority: 7 },
+  { providerId: "opencode-free", model: "nemotron-3-ultra-free", label: "OpenCode Nemotron 3 Ultra", priority: 8 }
 ];
 
 const candidateStats = new Map();
@@ -146,9 +163,16 @@ export function isFreeRoutableModel(model) {
     return false;
   }
 
+  let cleanId = id;
+  if (cleanId.startsWith("bailian/")) cleanId = cleanId.slice(8);
+  else if (cleanId.startsWith("tongyi-tp/")) cleanId = cleanId.slice(10);
+  else if (cleanId.startsWith("doubao/")) cleanId = cleanId.slice(7);
+  else if (cleanId.startsWith("opencode/")) cleanId = cleanId.slice(9);
+  else if (cleanId.startsWith("modelscope/")) cleanId = cleanId.slice(11);
+
   for (const prov of Object.values(PROVIDER_DEFINITIONS)) {
     for (const m of prov.models) {
-      if (m.id.toLowerCase() === id) return true;
+      if (m.id.toLowerCase() === cleanId || m.id.toLowerCase() === id) return true;
     }
   }
 
@@ -165,69 +189,121 @@ export function isAutoModel(model) {
   return id === "auto" || id === "free/auto" || id === "free-auto" || id === "free";
 }
 
-export function resolveFreeProvider(rawModel) {
+export function resolveFreeProviders(rawModel) {
   let model = String(rawModel || "").trim();
   if (model.startsWith("free/")) {
     model = model.slice(5);
   }
 
+  let explicitProv = null;
+  if (model.startsWith("bailian/")) {
+    explicitProv = "bailian";
+    model = model.slice(8);
+  } else if (model.startsWith("tongyi-tp/")) {
+    explicitProv = "tongyi-tp";
+    model = model.slice(10);
+  } else if (model.startsWith("doubao/")) {
+    explicitProv = "doubao";
+    model = model.slice(7);
+  } else if (model.startsWith("opencode/")) {
+    explicitProv = "opencode-free";
+    model = model.slice(9);
+  } else if (model.startsWith("modelscope/")) {
+    explicitProv = "modelscope";
+    model = model.slice(11);
+  }
+
   const keys = loadProviderKeys();
 
+  if (explicitProv && PROVIDER_DEFINITIONS[explicitProv]) {
+    const def = PROVIDER_DEFINITIONS[explicitProv];
+    return [{
+      providerId: explicitProv,
+      model,
+      baseURL: def.baseURL,
+      apiKey: keys[explicitProv] || "",
+      keyless: def.keyless === true,
+      name: def.name
+    }];
+  }
+
+  const matches = [];
   for (const [provId, def] of Object.entries(PROVIDER_DEFINITIONS)) {
     for (const m of def.models) {
       if (m.id === model) {
-        return {
+        matches.push({
           providerId: provId,
           model,
           baseURL: def.baseURL,
           apiKey: keys[provId] || "",
           keyless: def.keyless === true,
           name: def.name
-        };
+        });
       }
     }
   }
 
+  if (matches.length > 0) {
+    return matches;
+  }
+
   if (model.includes("seedream") || model.includes("doubao") || model.includes("-ga-")) {
-    return {
+    return [{
       providerId: "doubao",
       model,
       baseURL: PROVIDER_DEFINITIONS.doubao.baseURL,
       apiKey: keys["doubao"] || "",
       name: PROVIDER_DEFINITIONS.doubao.name
-    };
+    }];
   }
 
   if (model.includes("modelscope") || model.startsWith("deepseek-ai/") || model.startsWith("qwen/") || model.startsWith("shanghai_ai_laboratory/") || model.startsWith("stepfun-ai/")) {
-    return {
+    return [{
       providerId: "modelscope",
       model: model.replace(/^modelscope\//i, ""),
       baseURL: PROVIDER_DEFINITIONS.modelscope.baseURL,
       apiKey: keys["modelscope"] || "",
       name: PROVIDER_DEFINITIONS.modelscope.name
-    };
+    }];
   }
 
   if (model.endsWith("-free")) {
-    return {
+    return [{
       providerId: "opencode-free",
       model,
       baseURL: PROVIDER_DEFINITIONS["opencode-free"].baseURL,
       apiKey: "",
       keyless: true,
       name: PROVIDER_DEFINITIONS["opencode-free"].name
-    };
+    }];
   }
 
-  return null;
+  return [];
 }
 
-function getOrderedAutoCandidates() {
+export function resolveFreeProvider(rawModel) {
+  const providers = resolveFreeProviders(rawModel);
+  return providers[0] || null;
+}
+
+export function getOrderedAutoCandidates() {
   const now = Date.now();
+  const keys = loadProviderKeys();
   const available = [];
   const cooling = [];
 
+  // 只有"能真正发出请求"的候选才进池子：非 keyless 的 provider 若没配 key，
+  // 请求会带空 Bearer 打到上游拿 401，白白占掉一个候选名额、污染健康统计，
+  // 还让每个 auto 请求都先空跑一轮必败节点而抬高首字延迟。
+  const isUsable = (c) => {
+    const def = PROVIDER_DEFINITIONS[c.providerId];
+    if (!def) return false;
+    if (def.keyless === true) return true;
+    return Boolean(keys[c.providerId]);
+  };
+
   for (const c of AUTO_POOL_CANDIDATES) {
+    if (!isUsable(c)) continue;
     const key = `${c.providerId}:${c.model}`;
     const st = candidateStats.get(key);
     const inCooldown = st && st.cooldownUntil > now;
@@ -342,6 +418,7 @@ export async function mergeDualLibraryModels(agyPayload, query = {}) {
 
   // 1. 精简 AGY 库：从上游返回的模型中仅保留旗舰模型
   const availableAgyIds = new Set((agyPayload?.data || []).map((m) => m.id));
+  CURATED_AGY_MODELS.forEach((m) => availableAgyIds.add(m.id));
   const curatedAgy = CURATED_AGY_MODELS
     .filter((m) => availableAgyIds.has(m.id))
     .map((m) => ({
@@ -357,15 +434,6 @@ export async function mergeDualLibraryModels(agyPayload, query = {}) {
   // 2. 精简 Free 库
   const freeModels = getFreeModelsList();
 
-  if (libraryFilter === "agy") {
-    return {
-      object: "list",
-      library: "agy",
-      total: curatedAgy.length,
-      data: curatedAgy
-    };
-  }
-
   if (libraryFilter === "free") {
     return {
       object: "list",
@@ -376,18 +444,27 @@ export async function mergeDualLibraryModels(agyPayload, query = {}) {
     };
   }
 
-  // 默认合并全集：Auto 置顶，其次为 Gemini 3.1 Pro、Claude 4.6，最后为精简 Free 渠道
-  const combined = [
-    freeModels.find((m) => m.id === "auto"),
-    ...curatedAgy,
-    ...freeModels.filter((m) => m.id !== "auto")
-  ].filter(Boolean);
+  if (libraryFilter === "all") {
+    const combined = [
+      freeModels.find((m) => m.id === "auto"),
+      ...curatedAgy,
+      ...freeModels.filter((m) => m.id !== "auto")
+    ].filter(Boolean);
 
+    return {
+      object: "list",
+      libraries: ["agy", "free"],
+      total: combined.length,
+      data: combined
+    };
+  }
+
+  // 默认模式：8045 仅暴露纯净 AGY 旗舰模型库
   return {
     object: "list",
-    libraries: ["agy", "free"],
-    total: combined.length,
-    data: combined
+    library: "agy",
+    total: curatedAgy.length,
+    data: curatedAgy
   };
 }
 
@@ -428,8 +505,8 @@ export async function proxyFreeChat(req, res) {
   const isAuto = isAutoModel(rawModel);
 
   if (!isAuto) {
-    const resolved = resolveFreeProvider(rawModel);
-    if (!resolved) {
+    const candidateProviders = resolveFreeProviders(rawModel);
+    if (!candidateProviders || candidateProviders.length === 0) {
       return res.status(404).json({
         error: {
           message: `模型 ${rawModel} 未在 Free 免费模型库中找到可用配置`,
@@ -439,62 +516,61 @@ export async function proxyFreeChat(req, res) {
       });
     }
 
-    logger.info(`[FreeUpstream] 直接调度 ${resolved.name} [${resolved.model}] stream=${stream}`);
-    try {
-      const upstream = await executeUpstreamCall(resolved, req.body, stream);
-      if (upstream.status < 200 || upstream.status >= 300) {
-        recordCandidateResult(resolved.providerId, resolved.model, {
-          success: false,
-          statusCode: upstream.status,
-          error: `HTTP ${upstream.status}`
-        });
+    let lastError = null;
+    let lastStatus = 502;
 
-        if (stream && upstream.data && typeof upstream.data.on === "function") {
-          let errData = "";
-          upstream.data.on("data", (chunk) => (errData += chunk));
-          upstream.data.on("end", () => {
-            try {
-              res.status(upstream.status).json(JSON.parse(errData));
-            } catch {
-              res.status(upstream.status).send(errData);
-            }
+    for (const resolved of candidateProviders) {
+      logger.info(`[FreeUpstream] 调度渠道 ${resolved.name} [${resolved.model}] stream=${stream}`);
+      try {
+        const upstream = await executeUpstreamCall(resolved, req.body, stream);
+        if (upstream.status < 200 || upstream.status >= 300) {
+          recordCandidateResult(resolved.providerId, resolved.model, {
+            success: false,
+            statusCode: upstream.status,
+            error: `HTTP ${upstream.status}`
           });
+          logger.warn(`[FreeUpstream] 渠道 ${resolved.name} 响应异常 HTTP ${upstream.status}，尝试下一备选渠道...`);
+          lastStatus = upstream.status;
+          lastError = upstream.data;
+          continue;
+        }
+
+        recordCandidateResult(resolved.providerId, resolved.model, { success: true });
+
+        if (stream) {
+          res.status(upstream.status);
+          for (const [key, value] of Object.entries(upstream.headers || {})) {
+            if (key.toLowerCase() === "transfer-encoding") continue;
+            if (value !== undefined) res.setHeader(key, value);
+          }
+          upstream.data.on("error", (err) => {
+            logger.error(`[FreeUpstream] 流式传输中断 (${resolved.name}):`, err.message);
+            if (!res.headersSent) res.status(502);
+            res.end();
+          });
+          upstream.data.pipe(res);
           return;
         }
+
         return res.status(upstream.status).json(upstream.data);
-      }
-
-      recordCandidateResult(resolved.providerId, resolved.model, { success: true });
-
-      if (stream) {
-        res.status(upstream.status);
-        for (const [key, value] of Object.entries(upstream.headers || {})) {
-          if (key.toLowerCase() === "transfer-encoding") continue;
-          if (value !== undefined) res.setHeader(key, value);
-        }
-        upstream.data.on("error", (err) => {
-          logger.error(`[FreeUpstream] 流式传输中断 (${resolved.name}):`, err.message);
-          if (!res.headersSent) res.status(502);
-          res.end();
+      } catch (error) {
+        recordCandidateResult(resolved.providerId, resolved.model, {
+          success: false,
+          error: error.message
         });
-        upstream.data.pipe(res);
-        return;
+        logger.warn(`[FreeUpstream] 渠道 ${resolved.name} 连接异常 (${error.message})，尝试下一备选渠道...`);
+        lastError = { message: error.message, code: error.code || "UPSTREAM_ERROR" };
       }
-
-      return res.status(upstream.status).json(upstream.data);
-    } catch (error) {
-      recordCandidateResult(resolved.providerId, resolved.model, {
-        success: false,
-        error: error.message
-      });
-      return res.status(502).json({
-        error: {
-          message: `Free Upstream 转发失败 [${resolved.name}]: ${error.message}`,
-          type: "upstream_error",
-          code: error.code || "UPSTREAM_ERROR"
-        }
-      });
     }
+
+    // 所有渠道均失败
+    return res.status(lastStatus).json({
+      error: {
+        message: `所有可用上游渠道转发均失败: ${typeof lastError === "object" ? JSON.stringify(lastError) : lastError}`,
+        type: "upstream_error",
+        code: "ALL_UPSTREAMS_FAILED"
+      }
+    });
   }
 
   // Auto 智能模式

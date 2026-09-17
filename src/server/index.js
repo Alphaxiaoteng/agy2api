@@ -16,6 +16,7 @@ import { getPublicDir, getRelativePath } from '../utils/paths.js';
 import { errorHandler } from '../utils/errors.js';
 import { getChunkPoolSize, clearChunkPool } from './stream.js';
 import ipBlockManager from '../utils/ipBlockManager.js';
+import { timingSafeStringEqual } from '../utils/timingSafe.js';
 
 // 路由模块
 import adminRouter from '../routes/admin.js';
@@ -113,7 +114,8 @@ app.use((req, res, next) => {
     if (apiKey) {
       const authHeader = req.headers.authorization || req.headers['x-api-key'];
       const providedKey = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
-      if (providedKey !== apiKey) {
+      // 恒定时间比较：`!==` 会在首个不同字符处短路，可被时序攻击逐字符猜解
+      if (!timingSafeStringEqual(providedKey, apiKey)) {
         ipBlockManager.recordViolation(req.ip, 'auth_fail');
         logger.warn(`API Key 验证失败: ${req.method} ${req.path} (提供的Key: ${providedKey ? providedKey.substring(0, 10) + '...' : '无'})`);
         return res.status(401).json({ error: 'Invalid API Key' });
@@ -123,7 +125,8 @@ app.use((req, res, next) => {
     const apiKey = config.security?.apiKey;
     if (apiKey) {
       const providedKey = req.query.key || req.headers['x-goog-api-key'];
-      if (providedKey !== apiKey) {
+      // 同上：恒定时间比较，避免时序侧信道
+      if (!timingSafeStringEqual(providedKey, apiKey)) {
         ipBlockManager.recordViolation(req.ip, 'auth_fail');
         logger.warn(`API Key 验证失败: ${req.method} ${req.path} (提供的Key: ${providedKey ? providedKey.substring(0, 10) + '...' : '无'})`);
         return res.status(401).json({ error: 'Invalid API Key' });
@@ -265,7 +268,11 @@ const server = app.listen(config.server.port, config.server.host, () => {
 
 server.keepAliveTimeout = 65000;
 server.headersTimeout = 66000;
-server.requestTimeout = 0;
+// 5 分钟，等同 Node 18+ 默认值。置 0 会彻底关闭「接收完整请求」的超时，
+// 只靠 headersTimeout 拦不住「发完头再以极慢速率发 body」的慢速连接，
+// 配合 maxRequestsPerSocket=1000 可堆积大量半开连接耗光可用 socket。
+// 注意：该超时只覆盖"接收请求"，不影响 SSE 长响应的推送时长。
+server.requestTimeout = 300000;
 server.maxRequestsPerSocket = 1000;
 
 const activeSockets = new Set();
@@ -289,7 +296,7 @@ server.on('error', (error) => {
 
 // ==================== 优雅关闭 ====================
 let shuttingDown = false;
-const shutdown = (signal = 'unknown') => {
+const shutdown = (signal = 'unknown', exitCode = 0) => {
   if (shuttingDown) return;
   shuttingDown = true;
   logger.info(`正在关闭服务器... signal=${signal} pid=${process.pid} ppid=${process.ppid} sockets=${activeSockets.size}`);
@@ -322,14 +329,14 @@ const shutdown = (signal = 'unknown') => {
 
   server.close(() => {
     logger.info('服务器已关闭');
-    process.exit(0);
+    process.exit(exitCode);
   });
 
   // 5秒超时强制退出
   const forceTimer = setTimeout(() => {
     logger.warn('服务器关闭超时，强制退出');
     for (const socket of activeSockets) socket.destroy();
-    process.exit(0);
+    process.exit(exitCode);
   }, 30000);
   forceTimer.unref();
 };
@@ -338,11 +345,18 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 
 // ==================== 异常处理 ====================
+// 未捕获异常意味着调用栈之外的状态（堆、事件循环、子进程句柄）已不可信。
+// 只记日志不退出会让进程"带病运行"：可能把损坏状态扩散到每个请求，或陷入
+// 无限报错循环而没人知道。这里改为记录完整堆栈后走优雅关闭并以退出码 1 结束，
+// 交由 systemd / Docker / pm2 重启拉回健康实例。
 process.on('uncaughtException', (error) => {
-  logger.error('未捕获异常:', error.message);
-  // 不立即退出，让当前请求完成
+  logger.error('未捕获异常，进程即将退出:', error?.stack || error);
+  shutdown('uncaughtException', 1);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  logger.error('未处理的 Promise 拒绝:', reason);
+// 未处理的 Promise 拒绝通常只影响单个请求（该请求已失败），不足以说明进程状态损坏，
+// 因此这里保留存活但必须留下完整堆栈——原先只打印 reason，Error 会退化成一行字符串，
+// 真正的 bug（未 await 的调用、未关闭的 socket）反而查不出来。
+process.on('unhandledRejection', (reason) => {
+  logger.error('未处理的 Promise 拒绝:', reason instanceof Error ? reason.stack : reason);
 });

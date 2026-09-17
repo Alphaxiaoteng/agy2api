@@ -11,6 +11,12 @@ import requesterManager from '../utils/requesterManager.js';
 class TokenLifecycleManager {
   constructor(store) {
     this.store = store;
+    // 同一 tokenId 的「进行中刷新」Promise，用于合并并发刷新（防惊群）。
+    // 必要性：多个并发请求可能同时选中同一个临近过期的 token，各自独立调用
+    // refreshToken。OAuth 提供方在刷新时通常会轮换 refresh_token，先到的那次
+    // 会让旧的 refresh_token 失效，后到的并发请求因此拿到 400/403，被上层
+    // 误判为「凭证失效」而 disableToken，把一个健康账号永久禁用。
+    this._inflightRefresh = new Map();
   }
 
   /**
@@ -25,7 +31,9 @@ class TokenLifecycleManager {
   }
 
   /**
-   * 刷新单个 token
+   * 刷新单个 token（并发合并入口）
+   *
+   * 同一 tokenId 上已有刷新在飞时，直接复用那个 Promise，不再重复请求上游。
    * @param {Object} token - Token 对象
    * @param {string} tokenId - Token ID（用于日志）
    * @param {boolean} silent - 是否静默模式（不打印日志）
@@ -33,6 +41,26 @@ class TokenLifecycleManager {
    * @throws {TokenError} 刷新失败时抛出异常
    */
   async refreshToken(token, tokenId, silent = false) {
+    const inflight = this._inflightRefresh.get(tokenId);
+    if (inflight) {
+      if (!silent) {
+        log.info(`复用进行中的刷新，跳过重复请求: ${tokenId}`);
+      }
+      return inflight;
+    }
+
+    const pending = this._doRefreshToken(token, tokenId, silent).finally(() => {
+      this._inflightRefresh.delete(tokenId);
+    });
+    this._inflightRefresh.set(tokenId, pending);
+    return pending;
+  }
+
+  /**
+   * 真正执行刷新（不应被外部直接调用，统一走 refreshToken 以获得并发合并）
+   * @private
+   */
+  async _doRefreshToken(token, tokenId, silent = false) {
     if (!silent) {
       log.info(`正在刷新token: ${tokenId}`);
     }
