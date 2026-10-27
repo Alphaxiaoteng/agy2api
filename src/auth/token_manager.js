@@ -64,6 +64,14 @@ function compareResetScores(left, right) {
       || left.index - right.index;
   }
 
+  // 正常分层：若双方均有周重置时间且相差超过2小时，周重置早的优先消耗
+  if (Number.isFinite(left.weeklyReset) && Number.isFinite(right.weeklyReset)) {
+    const diff = left.weeklyReset - right.weeklyReset;
+    if (Math.abs(diff) > 2 * 60 * 60 * 1000) {
+      return diff;
+    }
+  }
+
   return left.sessionReset - right.sessionReset
     || right.sessionRemaining - left.sessionRemaining
     || left.weeklyReset - right.weeklyReset
@@ -160,13 +168,49 @@ export class TokenManager {
 
     // 轮询策略
     this.strategy = null;
-    this.rotationStrategyName = RotationStrategy.ROUND_ROBIN;
+    this.rotationStrategyName = RotationStrategy.ADAPTIVE;
     this.requestCountPerToken = DEFAULT_REQUEST_COUNT_PER_TOKEN;
     this.priorityAccountIds = [];
     this.sessionAffinity = new SessionAffinity();
 
+    // 并发在途请求追踪 (tokenId -> in-flight count)
+    this.inFlightCounts = new Map();
+
     // 初始化状态
     this._initPromise = null;
+  }
+
+  /**
+   * 记录 token 正在处理的在途并发请求
+   * @param {string} tokenId
+   */
+  acquireToken(tokenId) {
+    if (!tokenId) return;
+    const current = this.inFlightCounts.get(tokenId) || 0;
+    this.inFlightCounts.set(tokenId, current + 1);
+  }
+
+  /**
+   * 释放 token 的在途并发请求计数
+   * @param {string} tokenId
+   */
+  releaseToken(tokenId) {
+    if (!tokenId) return;
+    const current = this.inFlightCounts.get(tokenId) || 0;
+    if (current <= 1) {
+      this.inFlightCounts.delete(tokenId);
+    } else {
+      this.inFlightCounts.set(tokenId, current - 1);
+    }
+  }
+
+  /**
+   * 获取 token 当前正在处理的并发请求数
+   * @param {string} tokenId
+   * @returns {number}
+   */
+  getInFlightCount(tokenId) {
+    return this.inFlightCounts.get(tokenId) || 0;
   }
 
   /**
@@ -256,13 +300,14 @@ export class TokenManager {
     try {
       const jsonConfig = getConfigJson();
       if (jsonConfig.rotation) {
-        this.rotationStrategyName = jsonConfig.rotation.strategy || RotationStrategy.ROUND_ROBIN;
+        this.rotationStrategyName = jsonConfig.rotation.strategy || RotationStrategy.ADAPTIVE;
         this.requestCountPerToken = jsonConfig.rotation.requestCount || DEFAULT_REQUEST_COUNT_PER_TOKEN;
         const rawPriority = jsonConfig.rotation.priorityAccountIds ??
           jsonConfig.rotation.auto_switch_selected_account_ids ??
           jsonConfig.rotation.selected_accounts;
         this.priorityAccountIds = normalizePriorityAccountIds(rawPriority);
       } else {
+        this.rotationStrategyName = RotationStrategy.ADAPTIVE;
         this.priorityAccountIds = [];
       }
     } catch (error) {
@@ -387,26 +432,24 @@ export class TokenManager {
    * @private
    */
   async _refreshWeeklySummaries() {
-    const { fetchQuotaSummary } = await import('../api/client.js');
+    const { refreshTokenQuotaCache } = await import('../api/client.js');
     const ids = this.pool.getEnabledIds();
     let successCount = 0;
 
-    for (const tokenId of ids) {
+    // 并发预热所有启用账号的模型额度与周额度（各账号走独立代理端口，互不阻塞）
+    await Promise.allSettled(ids.map(async (tokenId) => {
       const token = this.pool.get(tokenId);
-      if (!token?.access_token) continue;
+      if (!token?.access_token) return;
       try {
-        const weekly = await fetchQuotaSummary(token);
-        if (weekly) {
-          quotaManager.updateQuotaSummary(tokenId, weekly);
-          successCount += 1;
-        }
+        await refreshTokenQuotaCache(tokenId, token);
+        successCount += 1;
       } catch (error) {
-        log.warn(`拉取周额度失败${token.email ? ` (${token.email})` : ''}: ${error.message}`);
+        log.warn(`预热账号额度失败${token.email ? ` (${token.email})` : ''}: ${error.message}`);
       }
-    }
+    }));
 
     if (successCount > 0) {
-      log.info(`周额度同步完成: ${successCount}/${ids.length}`);
+      log.info(`账号池额度并发预热完成: ${successCount}/${ids.length}`);
     }
 
     // 同步完成后触发周额度重置自动激活扫描
@@ -459,7 +502,31 @@ export class TokenManager {
     }
 
     if (availableTokens.length === 0) {
-      log.error(`没有对模型 ${modelId} 可用的token`);
+      log.warn(`[UpstreamOfficial] 本地额度标记未匹配到可用账号，遵从「全量统一模式与冻结上官方的」指令，直接放行全量具备该模型权限的账号直连官方上游验证`);
+      const isArgon = modelId.includes('argon');
+      const isClaude = modelId.includes('opus') || modelId.includes('sonnet');
+      const is46 = modelId.includes('4-6') || modelId.includes('4.6');
+
+      const candidateTokens = enabledTokens.filter(({ tokenId }) => {
+        const q = this.quotaManager?.cache?.get(tokenId);
+        const models = Object.keys(q?.models || {});
+        if (isArgon) {
+          const hasArgon = models.some(m => m.includes('5-5')) || models.some(m => m.includes('argon') && !m.includes('disabled'));
+          return hasArgon;
+        }
+        if (isClaude) {
+          if (is46) return models.some(m => m.includes('4-6'));
+          return models.some(m => m.includes('5-5') || m.includes('4-6'));
+        }
+        return true;
+      });
+
+      if (candidateTokens.length > 0) {
+        return candidateTokens;
+      }
+
+      // 终极兜底：直接返回所有启用账号
+      return enabledTokens;
     }
 
     return availableTokens;
@@ -490,20 +557,47 @@ export class TokenManager {
       }
     }
 
-    availableTokens = filterTopPriorityTier(availableTokens, modelId);
+    // 严格按周额度到期紧迫度排序号池（快重置的排最前）
+    availableTokens = sortEntriesByResetTime(availableTokens, modelId);
 
-    let selected = null;
-    if (sessionKey) {
-      const boundTokenId = this.sessionAffinity.get(sessionKey);
-      selected = availableTokens.find(({ tokenId }) => tokenId === boundTokenId) || null;
-      if (boundTokenId && !selected) this.sessionAffinity.delete(sessionKey, boundTokenId);
+    // 对于传统的 round_robin 策略，使用 filterTopPriorityTier 隔离同一分层，避免跨周期轮换；
+    // 自适应策略（adaptive）保留全量按优先级排序的候选池，以便低并发锁定首选、高并发平滑溢出到次优账号
+    if (this.rotationStrategyName === RotationStrategy.ROUND_ROBIN) {
+      availableTokens = filterTopPriorityTier(availableTokens, modelId);
     }
 
-    selected ||= this.strategy.selectToken(availableTokens);
+    let selected = null;
+    let isOverflow = false;
+    if (sessionKey) {
+      const boundTokenId = this.sessionAffinity.get(sessionKey);
+      const boundEntry = availableTokens.find(({ tokenId }) => tokenId === boundTokenId) || null;
+      if (boundTokenId && !boundEntry) {
+        this.sessionAffinity.delete(sessionKey, boundTokenId);
+      } else if (boundEntry) {
+        // 同一会话内：若绑定账号当前空闲，100% 锁定该账号不切换；
+        // 若绑定账号正在处理另一个并发请求（inFlight > 0，如同一会话内并发拉起子代理），且存在其他空闲账号，则本次并发请求溢流至空闲账号，但保留原会话绑定
+        const boundInFlight = this.inFlightCounts.get(boundTokenId) || 0;
+        const hasIdleAlternative = boundInFlight > 0 && availableTokens.some(
+          ({ tokenId }) => tokenId !== boundTokenId && (this.inFlightCounts.get(tokenId) || 0) === 0
+        );
+        if (hasIdleAlternative) {
+          isOverflow = true;
+        } else {
+          selected = boundEntry;
+        }
+      }
+    }
+
+    selected ||= this.strategy.selectToken(availableTokens, {
+      inFlightCounts: this.inFlightCounts,
+      sessionCounts: sessionKey ? this.sessionAffinity.countByToken() : null,
+      modelId
+    });
     if (!selected) return null;
 
     const { token, tokenId } = selected;
-    if (sessionKey) this.sessionAffinity.set(sessionKey, tokenId);
+    if (token) token._tokenId = tokenId;
+    if (sessionKey && !isOverflow) this.sessionAffinity.set(sessionKey, tokenId);
 
     if (this.lifecycle.isExpired(token)) {
       try {
@@ -848,6 +942,7 @@ export class TokenManager {
           email: token.email || null,
           hasQuota: token.hasQuota !== false,
           sub: token.sub || null,
+          proxy: token.proxy || null,
           credits: token.credits !== null && token.credits !== undefined ? token.credits : null,
           statusReason: token.statusReason || null,
           validationUrl: token.validationUrl || null,

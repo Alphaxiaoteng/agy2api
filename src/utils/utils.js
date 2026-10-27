@@ -4,6 +4,7 @@ import os from 'os';
 import { REASONING_EFFORT_MAP, DEFAULT_STOP_SEQUENCES } from '../constants/index.js';
 import { toGenerationConfig } from './parameterNormalizer.js';
 import { isImageModel } from './thoughtSignatureCache.js';
+import quotaManager from '../auth/quota_manager.js';
 
 // ==================== 签名常量 ====================
 export const CLAUDE_THOUGHT_SIGNATURE = 'RXNZRENrZ0lDaEFDR0FJcVFMZzVPTmZsd1ZHNmZKK3labDJ0TkNlRzc5QUpzUHV2OW9UZG1yc0JUUGNsUjFBQWhKNWlYcXhlU0dTaEtxeWJ1NUdaM2YvMXByaHJCSnk3OEhsWkxOd1NEREI5Mi8zQXFlYkUvY3RISEJvTXlGVHNzdzRJZXkxUTFkUURJakE3R3AwSXJQeW0xdWxLMVBXcFhuRElPdmJFRFd4LzV2cUZaQTg2NWU1SkM3QnY2dkxwZE43M2dLYkljaThobGR3cXF3S1VMbHE5b3NMdjc3QnNhZm5mbDhlbUd5NmJ6WVRpUnRWcXA0MDJabmZ2Tnl3T2hJd1BBV0l1SUNTdjFTemswZlNmemR0Z2R5eGgxaUJOZHhHNXVhZWhKdWhlUUwza3RDZWVxa2dMNFE0ZjRKWkFnR3pKOHNvaStjZ1pqRXJHT1lyNjJkdkxnUUVoT1E5MjN6bEUwRFd4aXdPU1JOK3VSRWdHZ0FKVkhZcjBKVzhrVTZvaEVaYk1IVkE4aG14ZElGMm9YK1ZxRnFUSGFDZWZEYWNQNTJVOW94VmJ0cFhrNnJUanQ2ZHpadEFMWThXQWs5RFI3bTJTbGova2VraXFzVVBRbFdIaFNUN3diZGpuVkYvdUVoODRWbXQ5WjdtaThtR2JEcTdaTHVOalF0T3hHMVpXbXJmeUpCMExwa0R1SnZDV01qZ3BqTHdsU0R4SUpmeEFoT2JzQlVpRzdLTDYwcUluanZaK1VTcXdjZGhmN0U3ZjgrN0l2ZXczRC9DZUYvdlptQ0JqU2JTcUdYYmFIQmdC';
@@ -93,7 +94,7 @@ export function cleanParameters(obj) {
 // ==================== Model Mapping ====================
 // Map Anthropic official model names to Antigravity model names
 // Supports Claude Code and other clients that use official Anthropic model naming
-export function modelMapping(modelName) {
+export function modelMapping(modelName, token = null) {
 	// Cursor issues requests using its built-in OpenAI model IDs when an
 	// OpenAI-compatible Base URL is configured. Keep them on AGY's configured
 	// Gemini Flash route; Gemini 3.8 is not exposed by this provider.
@@ -105,58 +106,69 @@ export function modelMapping(modelName) {
 		return modelName;
 	}
 
-	// Dynamic matching for Anthropic official model name formats:
-  // - claude-{type}-{major}-{minor}-{date} (e.g., claude-sonnet-4-5-20250929)
-  // - claude-{type}-{major}-{date} (e.g., claude-sonnet-4-20250514)
-  // - claude-{major}-{minor}-{type}-{date} (e.g., claude-3-5-sonnet-20241022)
-  // - claude-{major}-{type}-{date} (e.g., claude-3-opus-20240229)
-  // - claude-{version}-{type}-latest (e.g., claude-3-5-sonnet-latest)
-
-  // Pattern 1: claude-{type}-{version}-{date} (Claude 4+ format)
-  // e.g., claude-sonnet-4-5-20250929, claude-opus-4-20250514
-  const pattern1 = modelName.match(/^claude-(sonnet|opus|haiku)-\d+(-\d+)?-\d{8}$/);
-  if (pattern1) {
-    const type = pattern1[1];
-    if (type === 'opus') return 'claude-opus-4-5-thinking';
-    return 'claude-sonnet-4-5';
+  // Gemini 4 Argon mapping:
+  // Google 上游官方真实存在 gemini-4-argon-high / medium / low（且实测返回 gemini-4-argon-a）
+  // 具备 Argon 授权的账号（前4个账号），调用 Google 上游真实支持的 gemini-4-argon-high 模型
+  // 未开通 Argon 的老账号（后5个账号），无缝降级为 gemini-3.8-flash-high，防止触发上游 404
+  if (modelName.includes('gemini-4-argon') || modelName === 'gemini-4' || modelName.includes('argon')) {
+    if (token) {
+      const q = quotaManager.getQuota(token._tokenId || token.tokenId || token.email, true);
+      const models = Object.keys(q?.models || {});
+      const hasArgon = models.some(m => m.includes('argon') && !m.includes('disabled'));
+      if (hasArgon) {
+        if (modelName.includes('medium')) return 'gemini-4-argon-medium';
+        if (modelName.includes('low')) return 'gemini-4-argon-low';
+        return 'gemini-4-argon-high';
+      }
+    }
+    return 'gemini-3.8-flash-high';
   }
 
-  // Pattern 2: claude-{major}-{minor}-{type}-{date} (Claude 3.x format)
-  // e.g., claude-3-5-sonnet-20241022, claude-3-5-haiku-20241022
-  const pattern2 = modelName.match(/^claude-\d+-\d+-(sonnet|opus|haiku)-\d{8}$/);
-  if (pattern2) {
-    const type = pattern2[1];
-    if (type === 'opus') return 'claude-opus-4-5-thinking';
-    return 'claude-sonnet-4-5';
+  // Claude Opus mapping: 全量统一模式（支持前4个号5.5与后5个号4.6无缝互通，统一对外暴露 claude-opus-5.5）
+  if (modelName.includes('opus')) {
+    if (modelName.includes('4-6') || modelName.includes('4.6')) {
+      return 'claude-opus-4-6-thinking';
+    }
+    // 统一模式：若当前选中的账号具备 4.6 授权且无 5.5（后5个账号），无缝映射为该账号实际支持的 4-6-thinking
+    if (token) {
+      const q = quotaManager.getQuota(token._tokenId || token.tokenId || token.email, true);
+      const models = Object.keys(q?.models || {});
+      const has55 = models.some(m => m.includes('5-5'));
+      const has46 = models.some(m => m.includes('4-6'));
+      if (!has55 && has46) {
+        return 'claude-opus-4-6-thinking';
+      }
+    }
+    if (modelName.includes('medium')) return 'claude-opus-5-5-medium';
+    if (modelName.includes('low')) return 'claude-opus-5-5-low';
+    return 'claude-opus-5-5-high';
   }
 
-  // Pattern 3: claude-{major}-{type}-{date} (Claude 3 format)
-  // e.g., claude-3-opus-20240229, claude-3-sonnet-20240229
-  const pattern3 = modelName.match(/^claude-\d+-(sonnet|opus|haiku)-\d{8}$/);
-  if (pattern3) {
-    const type = pattern3[1];
-    if (type === 'opus') return 'claude-opus-4-5-thinking';
-    return 'claude-sonnet-4-5';
+  // Claude Sonnet mapping: 全量统一模式
+  if (modelName.includes('sonnet') || modelName.includes('haiku')) {
+    if (modelName.includes('4-6') || modelName.includes('4.6')) {
+      return 'claude-sonnet-4-6';
+    }
+    if (token) {
+      const q = quotaManager.getQuota(token._tokenId || token.tokenId || token.email, true);
+      const models = Object.keys(q?.models || {});
+      const has55 = models.some(m => m.includes('5-5'));
+      const has46 = models.some(m => m.includes('4-6'));
+      if (!has55 && has46) {
+        return 'claude-sonnet-4-6';
+      }
+    }
+    if (modelName.includes('medium')) return 'claude-sonnet-5-5-medium';
+    if (modelName.includes('low')) return 'claude-sonnet-5-5-low';
+    return 'claude-sonnet-5-5-high';
   }
 
-  // Pattern 4: claude-{version}-{type}-latest
-  // e.g., claude-3-5-sonnet-latest, claude-3-opus-latest
-  const pattern4 = modelName.match(/^claude-(\d+-)?(.+)-latest$/);
-  if (pattern4) {
-    const remainder = pattern4[2];
-    if (remainder.includes('opus')) return 'claude-opus-4-5-thinking';
-    return 'claude-sonnet-4-5';
+  if (modelName === 'gpt-oss-120b' || modelName.includes('gpt-oss-120b')) {
+    return 'gpt-oss-120b-medium';
   }
 
-  // Original logic (kept for backward compatibility)
-  if (modelName === 'claude-sonnet-4-5-thinking') return 'claude-sonnet-4-5';
-  if (modelName === 'claude-sonnet-4-6-thinking') return 'claude-sonnet-4-6';
-  // if (modelName === 'claude-opus-4-5') return 'claude-opus-4-5-thinking';
-  if (modelName === 'claude-opus-4-5') return 'claude-opus-4-6-thinking';
-  if (modelName === 'claude-opus-4-5-thinking') return 'claude-opus-4-6-thinking';
   if (modelName === 'gemini-3.8-flash-high' || modelName === 'gemini-3.8-flash-tiered' || modelName === 'gemini-3.8-flash-medium' || modelName === 'gemini-3.8-flash-low') return modelName;
   if (modelName === 'gemini-3.8-flash') return 'gemini-3.8-flash-tiered';
-  if (modelName === 'gemini-3.1-pro-high') return 'gemini-3.1-pro-high';
   if (modelName === 'gemini-2.5-flash-thinking') return 'gemini-2.5-flash';
   if (modelName === 'doubao-seedream-4.0') return 'doubao-seedream-4.0';
   if (modelName === 'doubao-5-pro') return 'doubao-5-pro';
@@ -166,6 +178,8 @@ export function modelMapping(modelName) {
 export function isEnableThinking(modelName) {
   if (isImageModel(modelName)) return false;
   return modelName.includes('-thinking') ||
+    modelName.includes('5-5') ||
+    modelName.includes('4-6') ||
     modelName.startsWith('gemini') ||
     modelName === 'rev19-uic3-1p' ||
     modelName === 'gpt-oss-120b-medium';

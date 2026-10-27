@@ -84,8 +84,8 @@ export function getLocalAppModelsList(libraryFilter = "") {
   const lib = String(libraryFilter || "").toLowerCase();
   if (lib === "workbuddy" || lib === "wb") return getWorkBuddyModelsList();
   if (lib === "zcode") return getZCodeModelsList();
-  if (lib === "qwenwork" || lib === "qwen") return getQwenWorkModelsList();
-  return [...getWorkBuddyModelsList(), ...getZCodeModelsList(), ...getQwenWorkModelsList()];
+  if (lib === "qwenwork" || lib === "qwen") return [];
+  return [...getWorkBuddyModelsList(), ...getZCodeModelsList()];
 }
 
 export function isLocalAppRoutableModel(rawModel) {
@@ -95,8 +95,7 @@ export function isLocalAppRoutableModel(rawModel) {
   if (m === "workbuddy" || m.startsWith("workbuddy/") || m.startsWith("wb/")) return true;
   if (m === "codebuddy" || m.startsWith("codebuddy/")) return true;
   if (m === "zcode" || m.startsWith("zcode/")) return true;
-  if (m === "qwen" || m.startsWith("qwen/") || m === "qwenwork" || m.startsWith("qwenwork/") || m.includes("qwen3.8")) return true;
-  for (const item of [...WORKBUDDY_MODELS, ...ZCODE_MODELS, ...QWENWORK_MODELS]) {
+  for (const item of [...WORKBUDDY_MODELS, ...ZCODE_MODELS]) {
     if (item.id === m) return true;
   }
   return false;

@@ -19,6 +19,11 @@ import {
   getZCodeModelsList,
   getQwenWorkModelsList
 } from '../services/localAppUpstream.js';
+import {
+  isQoderRoutableModel,
+  proxyQoderChat,
+  getQoderModelsList
+} from '../services/qoderUpstream.js';
 import { handleResponsesRequest } from '../services/responsesEngine.js';
 import logger from '../utils/logger.js';
 
@@ -54,6 +59,20 @@ router.get('/zcode/models', (req, res) => {
 
 router.get(['/qwen/models', '/qwenwork/models'], (req, res) => {
   res.status(404).json({ error: 'Qwen models have been disabled by user configuration' });
+});
+
+/**
+ * GET /v1/qoder/models
+ * 便捷端点：获取 Qoder 国际版与国内版专区模型列表
+ */
+router.get(['/qoder/models', '/qoder-cn/models'], (req, res) => {
+  const models = getQoderModelsList();
+  res.json({
+    object: 'list',
+    library: 'qoder',
+    total: models.length,
+    data: models
+  });
 });
 
 /**
@@ -121,6 +140,17 @@ router.get('/models', async (req, res) => {
       });
     }
 
+    // 4. 单独请求 Qoder 专区
+    if (libFilter === 'qoder' || libFilter === 'qoder-cn') {
+      const qdModels = getQoderModelsList();
+      return res.json({
+        object: 'list',
+        library: 'qoder',
+        total: qdModels.length,
+        data: qdModels
+      });
+    }
+
     let rawModels;
     try {
       rawModels = await getAvailableModels();
@@ -131,12 +161,13 @@ router.get('/models', async (req, res) => {
     const withCodex = await mergeCodexModels(rawModels);
     const dualLibrary = await mergeDualLibraryModels(withCodex, req.query);
 
-    if (libFilter === 'local' || libFilter === 'all') {
+    if (!libFilter || libFilter === 'local' || libFilter === 'all') {
       const localModels = getLocalAppModelsList();
+      const qoderModels = getQoderModelsList();
       if (Array.isArray(dualLibrary.data)) {
-        // 将本地旗舰应用置于首部以方便调用与区分
-        dualLibrary.data = [...localModels, ...dualLibrary.data];
-        dualLibrary.libraries = ['workbuddy', 'zcode', 'qwenwork', 'agy', 'free'];
+        // 将 Qoder 2API 与本地旗舰应用置于首部以方便调用与区分
+        dualLibrary.data = [...qoderModels, ...localModels, ...dualLibrary.data];
+        dualLibrary.libraries = ['qoder', 'workbuddy', 'zcode', 'agy', 'free'];
       }
     }
 
@@ -186,15 +217,21 @@ router.get('/models', async (req, res) => {
 
 /**
  * POST /v1/chat/completions
- * 1. 本地应用引擎 (WorkBuddy / ZCode / GLM-5.3 / 混元 / DeepSeek-V4-Pro 等) -> 路由本地代理
- * 2. 免费/社区模型库 (火山/魔搭/OpenCodeFree/百炼等，含 free/ 前缀) -> 转发对应 Upstream
- * 3. GPT/Codex 模型 -> 转发 Cockpit
- * 4. AGY 模型 (Gemini / Claude 等，支持 agy/ 前缀) -> 走 Antigravity 原生执行器
+ * 1. Qoder (国际版 / 国内版) 2API
+ * 2. 本地应用引擎 (WorkBuddy / ZCode / GLM-5.3 / 混元 / DeepSeek-V4-Pro 等) -> 路由本地代理
+ * 3. 免费/社区模型库 (火山/魔搭/OpenCodeFree/百炼等，含 free/ 前缀) -> 转发对应 Upstream
+ * 4. GPT/Codex 模型 -> 转发 Cockpit
+ * 5. AGY 模型 (Gemini / Claude 等，支持 agy/ 前缀) -> 走 Antigravity 原生执行器
  */
 router.post('/chat/completions', async (req, res) => {
   const model = req.body?.model;
 
-  // 1. 优先路由本地已认证的 WorkBuddy & ZCode 引擎
+  // 1. 优先路由 Qoder 2API (国际版 / 国内版)
+  if (isQoderRoutableModel(model)) {
+    return proxyQoderChat(req, res);
+  }
+
+  // 2. 路由本地已认证的 WorkBuddy & ZCode 引擎
   if (isLocalAppRoutableModel(model)) {
     return proxyLocalAppChat(req, res);
   }

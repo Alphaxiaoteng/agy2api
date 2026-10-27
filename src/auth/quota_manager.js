@@ -27,6 +27,12 @@ class QuotaManager {
     this.CACHE_TTL = QUOTA_CACHE_TTL;
     this.CLEANUP_INTERVAL = QUOTA_CLEANUP_INTERVAL;
     this.cleanupTimer = null;
+    // 热路径 I/O 保护：recordRequest 每次请求都会触发落盘，
+    // 同步 fs.writeFileSync 会冻结 Node 主事件循环（影响并发流与心跳定时器）。
+    // 改为「脏标记 + 防抖异步落盘」，把高频写合并为低频刷盘。
+    this._saveTimer = null;
+    this._saveInProgress = false;
+    this._saveAgain = false;
     this.ensureFileExists();
     this.loadFromFile();
     this.startCleanupTimer();
@@ -71,6 +77,73 @@ class QuotaManager {
     } catch (error) {
       log.error('保存额度文件失败:', error.message);
     }
+  }
+
+  /**
+   * 防抖异步落盘（热路径专用）
+   *
+   * 背景：recordRequest() 位于每个请求的关键路径上，原先直接同步写盘会阻塞
+   * Node.js 事件循环，导致同进程内其他并发 SSE 流与心跳定时器被卡住。
+   * 这里改为：立即返回 + 延迟合并写 + 串行化异步写，彻底释放事件循环。
+   *
+   * @param {number} [delayMs=2000] 防抖窗口
+   */
+  saveToFileDebounced(delayMs = 2000) {
+    if (this._saveTimer) clearTimeout(this._saveTimer);
+    this._saveTimer = setTimeout(() => {
+      this._saveTimer = null;
+      this._flushAsync();
+    }, delayMs);
+    // 不阻止进程退出
+    this._saveTimer.unref?.();
+  }
+
+  /**
+   * 串行化异步刷盘：同一时刻只允许一个写操作，期间的变更通过 _saveAgain 标记再次触发
+   */
+  _flushAsync() {
+    if (this._saveInProgress) {
+      this._saveAgain = true;
+      return;
+    }
+    this._saveInProgress = true;
+
+    try {
+      const quotas = {};
+      this.cache.forEach((value, key) => {
+        quotas[key] = value;
+      });
+      const data = {
+        meta: { lastCleanup: Date.now(), ttl: this.CLEANUP_INTERVAL },
+        quotas
+      };
+      const payload = JSON.stringify(data, null, 2);
+
+      fs.writeFile(this.filePath, payload, 'utf8', (err) => {
+        this._saveInProgress = false;
+        if (err) {
+          log.error('异步保存额度文件失败:', err.message);
+        }
+        if (this._saveAgain) {
+          this._saveAgain = false;
+          this._flushAsync();
+        }
+      });
+    } catch (error) {
+      this._saveInProgress = false;
+      log.error('异步保存额度文件异常:', error.message);
+    }
+  }
+
+  /**
+   * 立即同步落盘（仅用于进程退出前或关键状态变更，非热路径）
+   */
+  flushSync() {
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer);
+      this._saveTimer = null;
+    }
+    this.saveToFile();
   }
 
   /**
@@ -165,7 +238,7 @@ class QuotaManager {
       weeklyResetTimes: existing.weeklyResetTimes || {},
       weeklyRemaining: existing.weeklyRemaining || {}
     });
-    this.saveToFile();
+    this.saveToFileDebounced();
   }
 
   /**
@@ -207,7 +280,7 @@ class QuotaManager {
       sessionResetTimes,
       sessionRemaining
     });
-    this.saveToFile();
+    this.saveToFileDebounced();
   }
 
   /**
@@ -243,20 +316,22 @@ class QuotaManager {
     }
 
     data.requestCounts[groupKey] = (data.requestCounts[groupKey] || 0) + 1;
-    this.saveToFile();
+    // 热路径：改为防抖异步落盘，避免 fs.writeFileSync 冻结事件循环
+    this.saveToFileDebounced();
   }
 
   /**
-   * 获取额度数据（包含请求计数和预估）
+   * 获取指定 token 的额度数据
    * @param {string} refreshToken - Token ID
+   * @param {boolean} allowExpired - 是否允许返回过期的最近额度（统计与大盘展示必须为 true）
    * @returns {Object|null} 额度数据
    */
-  getQuota(refreshToken) {
+  getQuota(refreshToken, allowExpired = false) {
     const data = this.cache.get(refreshToken);
     if (!data) return null;
 
-    // 检查缓存是否过期
-    if (Date.now() - data.lastUpdated > this.CACHE_TTL) {
+    // 如果不允许过期，检查缓存是否过期
+    if (!allowExpired && (Date.now() - data.lastUpdated > this.CACHE_TTL)) {
       return null;
     }
 
@@ -286,20 +361,58 @@ class QuotaManager {
       return true;
     }
 
-    const exactQuota = data.models[modelId];
-    if (exactQuota) {
-      return (exactQuota.r || 0) > 0;
-    }
+    const now = Date.now();
+    const isResetPassed = (resetRaw) => {
+      if (!resetRaw) return false;
+      const ms = Date.parse(resetRaw);
+      return Number.isFinite(ms) && now >= ms;
+    };
 
     const groupKey = getGroupKey(modelId);
 
+    // 模型真实支持度硬门禁（严格对齐上游授权，没有该模型权限坚决不派发）
+    const modelKeys = Object.keys(data.models || {});
+    const tokenHas55 = modelKeys.some(m => m.includes('5-5'));
+    const tokenHas46 = modelKeys.some(m => m.includes('4-6'));
+
+    // 全量统一模式：响应用户指令「5个也配置到 opus 5.5吧 全部统一下吧 gemini4也一样吧」
+    // 前端统一暴露 claude-opus-5.5 / claude-sonnet-5.5 与 gemini-4-argon，9个账号全部打通统一服务
+    const tokenHasClaude = tokenHas55 || tokenHas46;
+    if (modelId.includes('opus') || modelId.includes('sonnet')) {
+      if (!tokenHasClaude) return false;
+      if ((modelId.includes('4-6') || modelId.includes('4.6')) && !tokenHas46) {
+        return false;
+      }
+    }
+
+    if (modelId.includes('argon') || modelId === 'gemini-4') {
+      const hasArgon = tokenHas55 || modelKeys.some(m => m.includes('argon') && !m.includes('disabled'));
+      if (!hasArgon) return false;
+    }
+
+    // 遵从用户指令「冻结上官方的」：以官方真实 429 报错为唯一冻结依据。
+    // 本地不预先人工阻断具备模型权限的账号，让请求真实穿透到官方上游。
+    const exactQuota = data.models[modelId];
+    if (exactQuota) {
+      if ((exactQuota.r || 0) > 0) return true;
+      if (isResetPassed(exactQuota.t)) return true;
+      // 当 exactQuota 的 remaining 为 null 或未精确统计 (known === false) 时，
+      // 说明上游未单独限流，允许穿透
+      if (exactQuota.r === null || exactQuota.r === undefined || exactQuota.known === false) {
+        return true;
+      }
+      return false;
+    }
+
     // 使用该组的最小额度来判断（与 getModelGroupQuota 逻辑一致）
     let minRemaining = null;
+    let earliestResetPassed = false;
 
     for (const [id, quotaData] of Object.entries(data.models)) {
       const idGroupKey = getGroupKey(id);
       if (idGroupKey === groupKey) {
-        const remaining = quotaData.r || 0;
+        const remaining = isResetPassed(quotaData.t) ? 1 : (quotaData.r || 0);
+        if (isResetPassed(quotaData.t)) earliestResetPassed = true;
         if (minRemaining === null || remaining < minRemaining) {
           minRemaining = remaining;
         }
@@ -308,6 +421,7 @@ class QuotaManager {
 
     // 没有找到该组的模型数据，假设有额度
     if (minRemaining === null) return true;
+    if (earliestResetPassed && minRemaining > 0) return true;
 
     // 该组最小额度为 0，说明额度耗尽
     return minRemaining > 0;
@@ -326,6 +440,13 @@ class QuotaManager {
     }
 
     const groupKey = getGroupKey(modelId);
+    if (groupKey === 'claude' && typeof data.weeklyRemaining?.claude === 'number' && data.weeklyRemaining.claude <= 0) {
+      return 0;
+    }
+    if (groupKey === 'gemini' && typeof data.weeklyRemaining?.gemini === 'number' && data.weeklyRemaining.gemini <= 0) {
+      return 0;
+    }
+
     let minRemaining = 1;
     let found = false;
 
